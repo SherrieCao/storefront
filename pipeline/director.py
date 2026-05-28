@@ -1,0 +1,163 @@
+"""Stage 1: Creative Director (Gemini 3.1 Pro, multimodal — SEES the assets).
+
+Receives the actual photos AND videos plus the triage inventory + the chosen concept, and plans the
+whole ad in one pass: a SEQUENCE OF MIXED SEGMENTS (seedance_shot / real_clip / moodboard / card),
+the total duration (15-30s), the spoken script, mood, and the editing intent (pacing / editing_feel)
+that feeds the EDITOR. Decides intent only — does not write per-shot prompts or the edit plan.
+
+Mixed segments + the Seedance/Remotion bright line: see SPEC_followup_mixed_segments.md (D19-D21).
+The Director plans creatively and NEVER reasons about cost (the $5 ceiling is a silent safety net).
+
+NOT for: writing per-shot Seedance prompts (the per-shot composer) or the edit plan (the Editor).
+"""
+from __future__ import annotations
+import json
+from pathlib import Path
+from typing import Any
+from . import config
+from .tracing import Run
+from .llm import parse_json
+from .translator import _usable_assets
+from .agent.loop import run_agent_loop
+from .agent import tools as agent_tools
+
+BRIEF_FILE = "02_creative_brief.json"
+SEGMENT_TYPES = {"seedance_shot", "real_clip", "moodboard", "card"}
+
+
+def run_director(run: Run, inventory: dict[str, Any], concept: dict[str, Any] | None = None,
+                 *, use_cache: bool = False, _retry: bool = False) -> dict[str, Any]:
+    cache = run.dir / BRIEF_FILE
+    if use_cache and cache.exists():
+        run.log("Director: loaded from cache"); return json.loads(cache.read_text())
+
+    run.log("Director: planning mixed segments + duration + script (multimodal)")
+    scaffold = _load_scaffold(inventory)
+    model = config.MODEL_ROUTER["creative_director"]
+
+    tokened = _usable_assets(inventory)
+    image_paths = [p for tok, p in tokened if tok.startswith("@Image")]
+    video_paths = [p for tok, p in tokened if tok.startswith("@Video")]
+    if inventory.get("logo_path"): image_paths.insert(0, inventory["logo_path"])
+
+    user_text = json.dumps({
+        "business": inventory["business"], "brief": inventory["brief"],
+        "has_before_after": inventory["has_before_after"],
+        "has_logo": inventory["has_logo"], "palette": inventory["palette"],
+        "chosen_concept": (concept or {}).get("chosen", {}),   # EXECUTE this (don't re-ideate)
+        "asset_summary": _asset_summary(inventory),
+        "duration_bounds_s": [config.MIN_DURATION_S, config.MAX_DURATION_S],
+    }, indent=2)
+
+    agent_tools.set_assets(inventory)
+    raw, thinking, _itok, _otok = run_agent_loop(
+        run, "director", scaffold, model, ["inspect_asset", "trend_lookup", "design_hook"],
+        user_text=user_text, image_paths=image_paths, video_paths=video_paths,
+        max_iterations=6,
+        stub=lambda: (_stub_director(), "STUB thinking: no GEMINI_API_KEY set", 0, 0))
+
+    brief = parse_json(raw)
+    brief = _validate(brief)
+    if brief is None:
+        if not _retry:
+            run.log("Director: empty/invalid brief — retrying once")
+            return run_director(run, inventory, concept, use_cache=False, _retry=True)
+        raise RuntimeError("Director returned an empty/invalid brief after retry")
+    cache.write_text(json.dumps(brief, indent=2))
+
+    segs = brief.get("segments", [])
+    counts = _type_counts(segs)
+    rationale = (f"**Total duration:** {brief.get('total_duration_s')}s\n\n"
+                 f"**Composition:** {brief.get('composition_reasoning','')}\n\n"
+                 f"**Angle:** {brief.get('creative_angle','')}\n\n"
+                 f"**Script:** {brief.get('script_reasoning','')}\n\n"
+                 f"**Segments** ({', '.join(f'{k}×{v}' for k, v in counts.items())}):\n"
+                 + "\n".join(f"- {s.get('n')}. [{s.get('type')}] {s.get('intent','')} — {s.get('why','')}"
+                             for s in segs))
+    run.reason("Director (Gemini)", thinking, rationale)
+    run.log(f"Director: {len(segs)} segments ({counts}), {brief.get('total_duration_s')}s, "
+            f"angle='{str(brief.get('creative_angle',''))[:60]}'")
+    return brief
+
+
+def _validate(brief: dict[str, Any]) -> dict[str, Any] | None:
+    """Require a non-empty segments[] of known types and a total_duration_s in bounds. Clamp
+    duration; default it from segment durations if missing. Returns the brief, or None to retry."""
+    segs = brief.get("segments")
+    if not isinstance(segs, list) or not segs:
+        return None
+    if any(s.get("type") not in SEGMENT_TYPES for s in segs):
+        return None
+    dur = brief.get("total_duration_s")
+    if not isinstance(dur, (int, float)) or dur <= 0:
+        dur = sum(float(s.get("duration_s") or 0) for s in segs) or config.MIN_DURATION_S
+    brief["total_duration_s"] = max(config.MIN_DURATION_S, min(config.MAX_DURATION_S, float(dur)))
+    return brief
+
+
+def _type_counts(segs: list[dict]) -> dict[str, int]:
+    out: dict[str, int] = {}
+    for s in segs:
+        t = str(s.get("type", "?"))
+        out[t] = out.get(t, 0) + 1
+    return out
+
+
+def _asset_summary(inv: dict) -> list[dict]:
+    """One row per usable asset, labeled with the @-token (ref) the Director uses to anchor a
+    segment to it. Quality/remediation from triage; the model also sees the pixels."""
+    by_path = {a["path"]: a for a in inv.get("images", []) + inv.get("videos", [])}
+    out = []
+    for tok, p in _usable_assets(inv):
+        a = by_path.get(p, {})
+        row = {"ref": tok, "file": Path(p).name, "kind": a.get("type"), "quality": a.get("note")}
+        if a.get("type") == "image":
+            row["remediation"] = a.get("remediation", [])
+        elif a.get("type") == "video":
+            row["length_s"] = a.get("duration_s")   # full source; real_clip trim_s picks the window
+        out.append(row)
+    return out
+
+
+def _load_scaffold(inv: dict) -> str:
+    t = (config.SCAFFOLDS_DIR / "creative_director.md").read_text()
+    return (t.replace("{{business}}", str(inv.get("business", "")))
+             .replace("{{brief}}", str(inv.get("brief", "")))
+             .replace("{{has_before_after}}", str(inv.get("has_before_after", False)))
+             .replace("{{has_logo}}", str(inv.get("has_logo", False)))
+             .replace("{{palette}}", ", ".join(inv.get("palette", [])) or "not detected")
+             .replace("{{min_duration_s}}", str(config.MIN_DURATION_S))
+             .replace("{{max_duration_s}}", str(config.MAX_DURATION_S)))
+
+
+def _stub_director() -> str:
+    """Canned mixed-segment brief so offline/no-key runs complete (the real loop runs only with a key)."""
+    return json.dumps({
+        "creative_angle": "STUB: the commute-friendly daycare right off the 101 — drop-off as a ritual.",
+        "format_note": "mixes a hero seedance_shot, a real clip, a moodboard, and a closing card",
+        "total_duration_s": 22,
+        "composition_reasoning": "STUB: a generated hero moment opens, real footage builds trust, a "
+                                 "moodboard consolidates scattered photos, a card lands the CTA.",
+        "script": "Right off the 101. Drop your pup with people who actually know them. "
+                  "Carol's Dog Daycare — open seven to seven, walk-ins welcome.",
+        "script_reasoning": "Local-recognition hook + concrete hours + walk-ins CTA.",
+        "speech": "Right off the 101. Drop your pup with people who actually know them. "
+                  "Carol's Dog Daycare — open seven to seven, walk-ins welcome.",
+        "mood": "warm, upbeat, neighborhood",
+        "pacing": "brisk",
+        "editing_feel": "clean hard cuts with one soft crossfade into the moodboard, room to land the CTA",
+        "hook": {"hook_visual": "a happy dog bounding toward camera at drop-off", "hook_line": "Right off the 101.",
+                 "mechanic": "relatability", "why": "stub", "cut_dead_first_second": True},
+        "segments": [
+            {"n": 1, "type": "seedance_shot", "duration_s": 4, "intent": "hero hook: dog at drop-off",
+             "action": "dog bounds toward camera", "camera": "low push-in", "asset_ref": "generated",
+             "why": "motion the stills can't supply"},
+            {"n": 2, "type": "real_clip", "duration_s": 4, "intent": "real footage of the yard",
+             "clip_ref": "@Video1", "trim_s": [0, 4], "why": "authentic proof"},
+            {"n": 3, "type": "moodboard", "duration_s": 6, "intent": "consolidate happy-dog photos",
+             "moodboard_assets": ["@Image1", "@Image2", "@Image3"], "why": "scattered assets -> one designed frame"},
+            {"n": 4, "type": "card", "duration_s": 3, "intent": "CTA", "card_template": "OfferBanner",
+             "card_text": "Open 7-7 · Walk-ins welcome", "why": "land the offer cleanly"},
+        ],
+        "_stub": True,
+    })

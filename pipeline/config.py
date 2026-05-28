@@ -87,8 +87,10 @@ SEEDANCE_TIER     = "fast"           # "fast" (cheap draft) | "standard" (--fina
 SEEDANCE_MIN_SHOT_S = 4              # VERIFIED: Seedance image-to-video min duration ~4s
 FPS               = 30
 
-# Seedance reference limits (real footage clips, etc.).
-MAX_VIDEO_CLIP_S  = 5.0
+# Asset enumeration caps (how many real assets to surface to the Director as @-tokens).
+MAX_REF_IMAGES    = 9                # recoverable photos offered as @Image1..N (keyframe/moodboard inputs)
+MAX_REF_VIDEOS    = 3                # usable videos offered as @Video1..N (real_clip sources)
+MAX_VIDEO_CLIP_S  = 5.0              # max real_clip trim length (Remotion trims in the editor)
 
 # ---------------------------------------------------------------------------
 # Multi-gen shot policy + cost ceiling (D5, D6)
