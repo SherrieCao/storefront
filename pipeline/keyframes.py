@@ -1,0 +1,126 @@
+"""Stage: Keyframes (Nano Banana 2 on fal) — a consistent set of per-segment frames.
+
+Two jobs (SPEC_tier3 + SPEC_followup_mixed_segments):
+  1. seedance_shot start frames — the frame Seedance animates. Modes:
+       generate_from_real : asset_ref is a real @Image -> Nano Banana /edit conditions on that photo
+                            (keeps the real subject's identity), reframed clean to 9:16.
+       generate           : asset_ref == "generated" -> Nano Banana text-to-image from the shot intent.
+  2. moodboard composition frames — Nano Banana arranges the segment's real photos as a designed
+     cutout composition in ONE 9:16 frame. This frame is handed to REMOTION to animate (NOT Seedance).
+real_clip and card segments need no keyframe.
+
+Consistency is held by Nano Banana's character consistency + a shared style suffix + a per-run seed.
+Prompts MUST forbid on-screen text (verified spike gotcha — Nano Banana renders text unbidden).
+Stubs offline (no FAL_KEY): writes placeholder frames so downstream stages still run.
+
+NOT for: video generation (Shot Agent) or creative decisions (the Director).
+"""
+from __future__ import annotations
+import json, urllib.request
+from pathlib import Path
+from typing import Any
+from . import config, budget
+from .tracing import Run
+from .translator import resolve_ref
+
+KEYFRAMES_DIR = "04_keyframes"
+# Held constant across the set so the frames share a look (+ Nano Banana's built-in consistency).
+_STYLE_SUFFIX = ("Consistent warm documentary style, soft natural light, authentic and lo-fi, "
+                 "vertical 9:16 composition. Absolutely NO on-screen text, words, captions, logos, "
+                 "watermarks, or signage.")
+
+
+def run_keyframes(run: Run, brief: dict[str, Any], inventory: dict[str, Any],
+                  *, use_cache: bool = False) -> dict[str, Any]:
+    out_dir = run.dir / KEYFRAMES_DIR
+    out_dir.mkdir(parents=True, exist_ok=True)
+    cache = out_dir / "map.json"
+    if use_cache and cache.exists():
+        run.log("Keyframes: loaded from cache"); return json.loads(cache.read_text())
+
+    segments = brief.get("segments", [])
+    mood = brief.get("mood", "")
+    seed = int(run.run_id) if str(run.run_id).isdigit() else 7  # per-run seed -> set coherence
+    kf_map: dict[str, dict[str, Any]] = {}
+
+    need = [s for s in segments if s.get("type") in ("seedance_shot", "moodboard")]
+    run.log(f"Keyframes: {len(need)} frames to build "
+            f"({sum(1 for s in need if s['type']=='seedance_shot')} shot start frames, "
+            f"{sum(1 for s in need if s['type']=='moodboard')} moodboard compositions)")
+
+    for seg in need:
+        n = seg.get("n")
+        dst = out_dir / f"kf_{n}.png"
+        if seg["type"] == "seedance_shot":
+            ref = str(seg.get("asset_ref", "generated"))
+            real_path = resolve_ref(inventory, ref) if ref.startswith("@Image") else None
+            if real_path:
+                mode, prompt, image_urls = "generate_from_real", _shot_prompt(seg, mood), [real_path]
+            else:
+                mode, prompt, image_urls = "generate", _shot_prompt(seg, mood), []
+        else:  # moodboard
+            mode = "moodboard"
+            assets = [resolve_ref(inventory, t) for t in seg.get("moodboard_assets", [])]
+            image_urls = [p for p in assets if p]
+            prompt = _moodboard_prompt(seg, mood)
+
+        _make_keyframe(run, mode, prompt, image_urls, str(dst), seed)
+        kf_map[str(n)] = {"path": str(dst), "mode": mode, "segment_type": seg["type"]}
+        run.log(f"Keyframes: segment {n} [{mode}] -> {dst.name}")
+
+    cache.write_text(json.dumps(kf_map, indent=2))
+    run.reason("Keyframes", None,
+               f"Built {len(kf_map)} frames (seed={seed}) for shot start frames + moodboard "
+               f"compositions; consistency via Nano Banana + shared style; no on-screen text.")
+    return kf_map
+
+
+def _shot_prompt(seg: dict[str, Any], mood: str) -> str:
+    intent = seg.get("intent", "")
+    action = seg.get("action", "")
+    camera = seg.get("camera", "")
+    base = f"A start frame for a short ad shot: {intent}. {action}. {('Mood: ' + mood + '. ') if mood else ''}"
+    if seg.get("asset_ref", "").startswith("@Image"):
+        base = ("Reframe and clean up the attached real photo into a polished 9:16 start frame, "
+                "keeping the EXACT same subject(s) and setting (preserve identity). " + base)
+    return base + _STYLE_SUFFIX
+
+
+def _moodboard_prompt(seg: dict[str, Any], mood: str) -> str:
+    return ("Compose the attached real photos as cutouts arranged into ONE designed moodboard "
+            "frame — subjects cut from their backgrounds and laid out like an art-directed "
+            "scrapbook/pinboard on a warm textured surface, slightly overlapping, editorial layout. "
+            f"{('Mood: ' + mood + '. ') if mood else ''}Keep each real subject's likeness. "
+            + _STYLE_SUFFIX)
+
+
+def _make_keyframe(run: Run, mode: str, prompt: str, image_urls: list[str], dst: str, seed: int) -> None:
+    if not config.FAL_KEY:
+        _stub_keyframe(mode, image_urls, dst)
+        run.log(f"Keyframes: STUB {Path(dst).name} ({mode})")
+        return
+    budget.check_ceiling(run, budget.keyframe_image(1), "keyframes")
+    import fal_client
+    if image_urls:  # generate_from_real / moodboard -> /edit with real photos as references
+        urls = [fal_client.upload_file(p) for p in image_urls]
+        res = fal_client.subscribe(config.MODEL_ROUTER["keyframe_edit"],
+                                   arguments={"prompt": prompt, "image_urls": urls,
+                                              "aspect_ratio": config.ASPECT_RATIO,
+                                              "num_images": 1, "seed": seed}, with_logs=False)
+    else:           # generate -> text-to-image
+        res = fal_client.subscribe(config.MODEL_ROUTER["keyframe"],
+                                   arguments={"prompt": prompt, "aspect_ratio": config.ASPECT_RATIO,
+                                              "num_images": 1, "seed": seed}, with_logs=False)
+    run.add_cost("keyframes", config.NANO_BANANA_COST_PER_IMAGE)
+    url = res["images"][0]["url"]
+    urllib.request.urlretrieve(url, dst)
+    run.trace({"step": "keyframes", "type": "fal_output", "mode": mode, "url": url})
+
+
+def _stub_keyframe(mode: str, image_urls: list[str], dst: str) -> None:
+    """Offline placeholder: copy the first real reference if present, else a solid 9:16 frame."""
+    from PIL import Image
+    if image_urls and Path(image_urls[0]).exists():
+        Image.open(image_urls[0]).convert("RGB").save(dst)
+    else:
+        Image.new("RGB", (1080, 1920), (40, 44, 48)).save(dst)

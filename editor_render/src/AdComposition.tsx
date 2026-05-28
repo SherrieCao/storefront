@@ -3,6 +3,7 @@ import {
   staticFile, useCurrentFrame, useVideoConfig,
 } from 'remotion';
 import {Caption, EditPlan, Segment} from './types';
+import {CARD_TEMPLATES} from './templates/Cards';
 
 const CROSSFADE_S = 0.4;
 
@@ -31,17 +32,10 @@ const MoodboardSegment: React.FC<{src: string; durationInFrames: number}> = ({sr
   );
 };
 
-// Minimal card template library (Phase 1 starter — OfferBanner shown; others share the shape).
+// Card segment -> the template library (templates/Cards.tsx). Falls back to EndCard.
 const CardSegment: React.FC<{template?: string; text?: string}> = ({template, text}) => {
-  const bg = template === 'OfferBanner' ? '#0b6e4f' : '#111';
-  return (
-    <AbsoluteFill style={{backgroundColor: bg, justifyContent: 'center', alignItems: 'center', padding: 80}}>
-      <div style={{color: 'white', fontSize: 86, fontWeight: 800, textAlign: 'center', lineHeight: 1.15,
-                   fontFamily: 'Helvetica, Arial, sans-serif'}}>
-        {text}
-      </div>
-    </AbsoluteFill>
-  );
+  const Card = CARD_TEMPLATES[template ?? 'EndCard'] ?? CARD_TEMPLATES.EndCard;
+  return <Card text={text} />;
 };
 
 const renderSegment = (seg: Segment, durationInFrames: number) => {

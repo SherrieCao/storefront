@@ -9,6 +9,9 @@ __pycache__/
 # node / remotion
 node_modules/
 editor_render/out/
+# per-run staged render assets + props (the spike fixtures clip1/moodboard1/voiceover stay)
+editor_render/public/[0-9]*/
+editor_render/public/_props_*.json
 
 # run outputs
 runs/
@@ -22,3 +25,6 @@ spikes/out/
 
 # os
 .DS_Store
+
+# smoke-test scratch run dirs
+_smoke_runs*/
