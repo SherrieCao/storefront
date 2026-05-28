@@ -20,10 +20,11 @@ from typing import Any
 from . import config
 from .tracing import Run, log_llm_call
 from .llm import call_claude, parse_json
-from .translator import resolve_ref
+from .translator import resolve_ref, _usable_assets
 
 EDIT_PLAN_FILE = "07_edit_plan.json"
 OUTPUT_FILE = "09_output/final.mp4"
+VOICE_DIR_FIT = "06_voice/voiceover_fit.mp3"
 _TRANSITIONS = {"hard_cut", "crossfade"}
 _CROSSFADE_S = 0.4    # MUST match editor_render/src/AdComposition.tsx CROSSFADE_S
 _MIN_SEG_S = 1.2
@@ -49,29 +50,54 @@ def plan_timeline(run: Run, brief: dict[str, Any], shots_result: dict[str, Any],
 
     timeline = {"fps": config.FPS, "width": 1080, "height": 1920,
                 "segments": segs, "sources": sources, "total_s": round(total_s, 2),
-                "reasoning": agent.get("reasoning", "")}
+                "palette": inventory.get("palette", []), "reasoning": agent.get("reasoning", "")}
     run.log(f"Editor: timeline {total_s:.1f}s — "
             + ", ".join(f"{s['type']}:{s['duration_s']:.1f}s" for s in segs))
     return timeline
 
 
 def render(run: Run, timeline: dict[str, Any], voice: dict[str, Any], *, use_cache: bool = False) -> str:
-    """One Remotion pass: fixed timeline + fitted voice + timestamp-accurate captions."""
+    """One Remotion pass: fixed timeline + voice (atempo-fit to the video) + rescaled captions."""
     out = run.dir / OUTPUT_FILE
     if use_cache and out.exists():
         run.log("Editor: render loaded from cache"); return str(out)
 
     segs = [{k: v for k, v in s.items() if not k.startswith("_")} for s in timeline["segments"]]
     sources = dict(timeline["sources"])
-    audio = None
-    if voice.get("audio_path") and Path(voice["audio_path"]).exists():
-        sources["voiceover.mp3"] = voice["audio_path"]
+    video_len = float(timeline.get("total_s") or sum(s["duration_s"] for s in segs))
+
+    # Fit the voice to the video by time-stretching it (pitch-preserving), NOT by stretching the video.
+    audio, captions = None, [dict(text=l["text"], start_s=l["start_s"], end_s=l["end_s"])
+                             for l in voice.get("lines", [])]
+    vpath = voice.get("audio_path")
+    if vpath and Path(vpath).exists():
+        voice_dur = (voice.get("duration_ms") or 0) / 1000 or video_len
+        tempo = 1.0
+        if voice_dur > video_len + 0.1:
+            tempo = min(round(voice_dur / video_len, 3), config.VOICE_MAX_ATEMPO)
+        fitted = run.dir / VOICE_DIR_FIT
+        if tempo > 1.0:
+            _atempo(vpath, str(fitted), tempo)
+            captions = [{"text": c["text"], "start_s": round(c["start_s"] / tempo, 2),
+                         "end_s": round(c["end_s"] / tempo, 2)} for c in captions]
+            run.log(f"Editor: voice {voice_dur:.1f}s atempo×{tempo} -> {voice_dur/tempo:.1f}s "
+                    f"(video {video_len:.1f}s)")
+            vstaged = str(fitted)
+            # if capped (voice still longer than video), extend the last card so nothing clips
+            fitted_dur = voice_dur / tempo
+            if fitted_dur > video_len + 0.3:
+                ext = next((s for s in reversed(segs) if s["type"] in ("card", "moodboard")), segs[-1])
+                ext["duration_s"] = round(ext["duration_s"] + (fitted_dur - video_len), 2)
+                run.log(f"Editor: voice still {fitted_dur:.1f}s at atempo cap — extended closing "
+                        f"{ext['type']} to avoid clipping the CTA.")
+        else:
+            vstaged = vpath
+        sources["voiceover.mp3"] = vstaged
         audio = {"src": "voiceover.mp3", "gain": 1.0}
-    captions = [{"text": l["text"], "start_s": l["start_s"], "end_s": l["end_s"]}
-                for l in voice.get("lines", [])]
 
     render_plan = {"fps": timeline["fps"], "width": timeline["width"], "height": timeline["height"],
-                   "segments": segs, "audio": audio, "captions": captions}
+                   "segments": segs, "audio": audio, "captions": captions,
+                   "palette": timeline.get("palette", [])}
     (run.dir / EDIT_PLAN_FILE).write_text(json.dumps(
         {"plan": render_plan, "total_s": timeline["total_s"], "reasoning": timeline.get("reasoning", "")},
         indent=2))
@@ -103,18 +129,19 @@ def _usable_segments(brief, clips, keyframes_map, inventory) -> list[dict[str, A
 
 def _video_limits(usable: list[dict], clips: dict, inventory: dict) -> dict[str, float]:
     """Max display seconds for each VIDEO segment (its real content length). Shown longer -> freeze."""
+    rate = config.VIDEO_PLAYBACK_RATE          # sped clips cover less real time on screen
     limits: dict[str, float] = {}
     for s in usable:
         n, t = str(s.get("n")), s.get("type")
         if t == "seedance_shot":
             cl = _clip_duration(clips.get(n))
-            if cl: limits[n] = round(cl, 2)
+            if cl: limits[n] = round(cl / rate, 2)
         elif t == "real_clip":
             cl = _clip_duration(resolve_ref(inventory, str(s.get("clip_ref", ""))))
             trim = s.get("trim_s")
             cap = (trim[1] - trim[0]) if (isinstance(trim, list) and len(trim) == 2) else cl
             if cl and cap: cap = min(cap, cl)
-            if cap: limits[n] = round(float(cap), 2)
+            if cap: limits[n] = round(float(cap) / rate, 2)
     return limits
 
 
@@ -168,8 +195,10 @@ def _build_segments(agent: dict, by_n: dict, clips: dict, keyframes_map: dict,
                                "transition_in": trans, "_max_s": limits.get(n)}
         if t == "seedance_shot":
             seg["src"] = _stage(sources, f"shot_{n}.mp4", clips[n])
+            seg["playback_rate"] = config.VIDEO_PLAYBACK_RATE
         elif t == "real_clip":
             seg["src"] = _stage(sources, f"clip_{n}.mp4", resolve_ref(inventory, str(d.get("clip_ref", ""))))
+            seg["playback_rate"] = config.VIDEO_PLAYBACK_RATE
             if d.get("trim_s"):
                 seg["trim_s"] = d["trim_s"]
         elif t == "moodboard":
@@ -177,8 +206,25 @@ def _build_segments(agent: dict, by_n: dict, clips: dict, keyframes_map: dict,
         elif t == "card":
             seg["card_template"] = d.get("card_template", "EndCard")
             seg["card_text"] = d.get("card_text", "")
+            bg = _card_bg(keyframes_map, inventory)        # photo-backed cards (kill the flat look)
+            if bg:
+                seg["bg_src"] = _stage(sources, f"cardbg_{n}{Path(bg).suffix}", bg)
         out.append(seg)
     return out, sources
+
+
+def _card_bg(keyframes_map: dict, inventory: dict) -> str | None:
+    """A background image for cards: prefer a moodboard composition frame (the look the operator
+    liked), else the strongest enhanced real photo. None -> the card falls back to a palette gradient."""
+    for v in keyframes_map.values():
+        if v.get("mode") == "moodboard" and v.get("path") and Path(v["path"]).exists():
+            return v["path"]
+    for tok, _p in _usable_assets(inventory):
+        if tok.startswith("@Image"):
+            rp = resolve_ref(inventory, tok)
+            if rp and Path(rp).exists():
+                return rp
+    return None
 
 
 def _fit_to_total(run: Run, segs: list[dict], target: float) -> None:
@@ -231,6 +277,16 @@ def _stage(sources: dict[str, str], name: str, src: str | None) -> str:
     return name
 
 
+def _atempo(src: str, dst: str, tempo: float) -> None:
+    """Pitch-preserving time-stretch with ffmpeg atempo (chain for tempo > 2.0)."""
+    t, filters = tempo, []
+    while t > 2.0:
+        filters.append("atempo=2.0"); t /= 2.0
+    filters.append(f"atempo={round(t, 3)}")
+    subprocess.run(["ffmpeg", "-y", "-i", src, "-filter:a", ",".join(filters), dst],
+                   capture_output=True)
+
+
 def _clip_duration(path: str | None) -> float | None:
     if not path or not Path(path).exists():
         return None
@@ -250,9 +306,14 @@ def _render(run: Run, render_plan: dict, sources: dict[str, str], out_path: str)
     pub.mkdir(parents=True, exist_ok=True)
     for name, src in sources.items():
         shutil.copy2(src, pub / name)
+    def _pref(s: dict) -> dict:
+        s = dict(s)
+        for k in ("src", "bg_src"):
+            if s.get(k):
+                s[k] = f"{run.run_id}/{s[k]}"
+        return s
     prefixed = {**render_plan,
-                "segments": [{**s, **({"src": f"{run.run_id}/{s['src']}"} if s.get("src") else {})}
-                             for s in render_plan["segments"]],
+                "segments": [_pref(s) for s in render_plan["segments"]],
                 "audio": ({**render_plan["audio"], "src": f"{run.run_id}/{render_plan['audio']['src']}"}
                           if render_plan.get("audio") else None)}
     props = config.EDITOR_RENDER_DIR / "public" / f"_props_{run.run_id}.json"

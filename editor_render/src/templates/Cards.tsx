@@ -1,63 +1,94 @@
-// Card template library (Phase 1 — 5 starters; grow as needed). Each is a Remotion component taking
-// text + style props. Kept visually consistent: bold sans, high contrast, vertical 9:16, no clutter.
-import {AbsoluteFill, interpolate, useCurrentFrame} from 'remotion';
+// Card template library — photo-backed, scrim, spring-animated text in the brand palette.
+// Each takes {text, bg?, palette?}. A `bg` (staticFile name) renders behind a dark gradient scrim
+// with a slow Ken Burns push; without it, a palette gradient. Text springs in. No flat color cards.
+import {AbsoluteFill, Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 
 const FONT = 'Helvetica, Arial, sans-serif';
 
-const Center: React.FC<{bg: string; children: React.ReactNode}> = ({bg, children}) => {
+type CardProps = {text?: string; bg?: string; palette?: string[]};
+
+const accentOf = (palette?: string[]) => (palette && palette[0]) || '#0b6e4f';
+const accent2Of = (palette?: string[]) => (palette && (palette[2] || palette[1])) || '#15324b';
+
+// Background: Ken Burns photo + dark scrim, OR a palette gradient.
+const Backdrop: React.FC<{bg?: string; palette?: string[]}> = ({bg, palette}) => {
   const frame = useCurrentFrame();
-  const opacity = interpolate(frame, [0, 8], [0, 1], {extrapolateRight: 'clamp'});
-  return (
-    <AbsoluteFill style={{backgroundColor: bg, justifyContent: 'center', alignItems: 'center',
-                          padding: 90, opacity}}>
-      {children}
-    </AbsoluteFill>
-  );
+  const scale = 1.06 + frame * 0.0009;
+  if (bg) {
+    return (
+      <AbsoluteFill style={{backgroundColor: '#000', overflow: 'hidden'}}>
+        <Img src={staticFile(bg)} style={{width: '100%', height: '100%', objectFit: 'cover',
+          transform: `scale(${scale})`}} />
+        <AbsoluteFill style={{background:
+          'linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.15) 45%, rgba(0,0,0,0.82) 100%)'}} />
+      </AbsoluteFill>
+    );
+  }
+  return <AbsoluteFill style={{background:
+    `linear-gradient(150deg, ${accentOf(palette)} 0%, ${accent2Of(palette)} 100%)`}} />;
 };
 
-const Title: React.FC<{text?: string}> = ({text}) => (
-  <Center bg="#111111">
-    <div style={{color: 'white', fontSize: 96, fontWeight: 800, textAlign: 'center', lineHeight: 1.1, fontFamily: FONT}}>
-      {text}
-    </div>
-  </Center>
+// Spring entrance: slide up + fade.
+const useEntrance = (delay = 0) => {
+  const frame = useCurrentFrame();
+  const {fps} = useVideoConfig();
+  const s = spring({frame: frame - delay, fps, config: {damping: 14, stiffness: 120, mass: 0.6}});
+  return {opacity: interpolate(s, [0, 1], [0, 1]), transform: `translateY(${interpolate(s, [0, 1], [40, 0])}px)`};
+};
+
+const Lower: React.FC<{children: React.ReactNode}> = ({children}) => (
+  <AbsoluteFill style={{justifyContent: 'flex-end', alignItems: 'center', padding: '0 70px 200px'}}>
+    {children}
+  </AbsoluteFill>
 );
 
-const OfferBanner: React.FC<{text?: string}> = ({text}) => (
-  <Center bg="#0b6e4f">
-    <div style={{color: 'white', fontSize: 88, fontWeight: 800, textAlign: 'center', lineHeight: 1.15, fontFamily: FONT}}>
-      {text}
-    </div>
-  </Center>
+const Big: React.FC<{text?: string; size?: number; delay?: number; color?: string}> =
+  ({text, size = 92, delay = 0, color = 'white'}) => {
+  const e = useEntrance(delay);
+  return <div style={{...e, color, fontSize: size, fontWeight: 800, textAlign: 'center', lineHeight: 1.1,
+    fontFamily: FONT, textShadow: '0 4px 24px rgba(0,0,0,0.6)'}}>{text}</div>;
+};
+
+const Title: React.FC<CardProps> = ({text, bg, palette}) => (
+  <AbsoluteFill><Backdrop bg={bg} palette={palette} />
+    <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', padding: 80}}>
+      <Big text={text} size={104} /></AbsoluteFill></AbsoluteFill>
 );
 
-const PriceTag: React.FC<{text?: string}> = ({text}) => (
-  <Center bg="#1d1d1f">
-    <div style={{border: '8px solid #f5c518', borderRadius: 28, padding: '44px 64px'}}>
-      <div style={{color: '#f5c518', fontSize: 104, fontWeight: 900, textAlign: 'center', fontFamily: FONT}}>
-        {text}
-      </div>
-    </div>
-  </Center>
+const OfferBanner: React.FC<CardProps> = ({text, bg, palette}) => {
+  const e = useEntrance(4);
+  return <AbsoluteFill><Backdrop bg={bg} palette={palette} /><Lower>
+    <div style={{...e, backgroundColor: accentOf(palette), padding: '26px 44px', borderRadius: 22,
+      transform: `${e.transform} rotate(-2deg)`}}>
+      <div style={{color: 'white', fontSize: 84, fontWeight: 900, textAlign: 'center', lineHeight: 1.1,
+        fontFamily: FONT}}>{text}</div></div></Lower></AbsoluteFill>;
+};
+
+const PriceTag: React.FC<CardProps> = ({text, bg, palette}) => {
+  const e = useEntrance(4);
+  return <AbsoluteFill><Backdrop bg={bg} palette={palette} />
+    <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', padding: 80}}>
+      <div style={{...e, border: `8px solid ${accentOf(palette)}`, borderRadius: 28, padding: '40px 60px',
+        backgroundColor: 'rgba(0,0,0,0.45)'}}>
+        <div style={{color: 'white', fontSize: 100, fontWeight: 900, textAlign: 'center', fontFamily: FONT}}>
+          {text}</div></div></AbsoluteFill></AbsoluteFill>;
+};
+
+const LocationPin: React.FC<CardProps> = ({text, bg, palette}) => {
+  const e = useEntrance(4);
+  return <AbsoluteFill><Backdrop bg={bg} palette={palette} /><Lower>
+    <div style={{...e, fontSize: 92, marginBottom: 8}}>📍</div>
+    <Big text={text} size={74} delay={8} /></Lower></AbsoluteFill>;
+};
+
+// EndCard / CTA — the strongest treatment: accent kicker + big animated CTA.
+const EndCard: React.FC<CardProps> = ({text, bg, palette}) => (
+  <AbsoluteFill><Backdrop bg={bg} palette={palette} /><Lower>
+    <div style={{width: 90, height: 8, borderRadius: 4, backgroundColor: accentOf(palette),
+      marginBottom: 28, ...useEntrance(0)}} />
+    <Big text={text} size={86} delay={6} /></Lower></AbsoluteFill>
 );
 
-const LocationPin: React.FC<{text?: string}> = ({text}) => (
-  <Center bg="#15324b">
-    <div style={{fontSize: 120, marginBottom: 16}}>📍</div>
-    <div style={{color: 'white', fontSize: 78, fontWeight: 700, textAlign: 'center', lineHeight: 1.2, fontFamily: FONT}}>
-      {text}
-    </div>
-  </Center>
-);
-
-const EndCard: React.FC<{text?: string}> = ({text}) => (
-  <Center bg="#000000">
-    <div style={{color: 'white', fontSize: 84, fontWeight: 800, textAlign: 'center', lineHeight: 1.2, fontFamily: FONT}}>
-      {text}
-    </div>
-  </Center>
-);
-
-export const CARD_TEMPLATES: Record<string, React.FC<{text?: string}>> = {
+export const CARD_TEMPLATES: Record<string, React.FC<CardProps>> = {
   Title, OfferBanner, PriceTag, LocationPin, EndCard,
 };

@@ -7,8 +7,10 @@ export type Segment = {
   duration_s: number;
   src?: string; // staticFile name for seedance_shot / real_clip / moodboard keyframe
   trim_s?: [number, number]; // real_clip trim window
+  playback_rate?: number; // speed-ramp for seedance_shot / real_clip (energy)
   card_template?: string; // EndCard | PriceTag | LocationPin | OfferBanner | Title
   card_text?: string;
+  bg_src?: string; // staticFile name for a card's photo background
   transition_in?: Transition;
 };
 
@@ -21,6 +23,7 @@ export type EditPlan = {
   segments: Segment[];
   audio?: {src: string; gain?: number} | null;
   captions?: Caption[];
+  palette?: string[]; // brand palette hex colors (card accents)
 };
 
 export const DEFAULT_PLAN: EditPlan = {

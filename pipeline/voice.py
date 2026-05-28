@@ -47,24 +47,20 @@ def run_voice(run: Run, brief: dict[str, Any], timeline: dict[str, Any],
         result = {"audio_path": str(mp3), "duration_ms": int(target_s * 1000), "lines": lines}
         cache.write_text(json.dumps(result, indent=2)); return result
 
-    speed = 1.0
-    lines, dur_s = _eleven_render(run, text, str(mp3), speed)
-    # fit: if the voice overruns the visual timeline, re-render once a bit faster (ElevenLabs cap 1.2)
-    if dur_s > target_s * 1.05:
-        speed = min(1.2, round(speed * dur_s / target_s, 2))
-        run.log(f"Voice: {dur_s:.1f}s > timeline {target_s:.1f}s — re-rendering at speed {speed}")
-        lines, dur_s = _eleven_render(run, text, str(mp3), speed)
-        if dur_s > target_s + 0.6:
-            run.log(f"Voice: still {dur_s:.1f}s at max speed — script is long for {target_s:.0f}s "
-                    f"(Director should shorten the script or raise total_duration_s).")
+    # Generate ONE natural take. The editor time-stretches it (ffmpeg atempo, pitch-preserving) to fit
+    # the fixed video length, so we don't fight ElevenLabs' 1.2 speed cap here.
+    lines, dur_s = _eleven_render(run, text, str(mp3), 1.0)
+    if dur_s > target_s * 1.6:
+        run.log(f"Voice: {dur_s:.1f}s for a {target_s:.0f}s ad — editor atempo caps at "
+                f"{config.VOICE_MAX_ATEMPO}× (Director should shorten the script).")
 
     result = {"audio_path": str(mp3), "duration_ms": int(dur_s * 1000), "lines": lines,
-              "voice": _VOICE_ID, "speed": speed, "timeline_total_s": target_s}
+              "voice": _VOICE_ID, "timeline_total_s": target_s}
     cache.write_text(json.dumps(result, indent=2))
     run.reason("Voice", None,
-               f"ElevenLabs voiceover fit to the {target_s:.1f}s timeline (rendered {dur_s:.1f}s, "
-               f"speed {speed}); {len(lines)} caption lines from real word timestamps.")
-    run.log(f"Voice: {dur_s:.1f}s, {len(lines)} lines (speed {speed})")
+               f"ElevenLabs natural take ({dur_s:.1f}s); the editor will atempo-fit it to the "
+               f"{target_s:.1f}s timeline. {len(lines)} caption lines from real word timestamps.")
+    run.log(f"Voice: {dur_s:.1f}s natural, {len(lines)} lines (editor will fit to {target_s:.1f}s)")
     return result
 
 

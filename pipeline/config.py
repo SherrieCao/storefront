@@ -100,7 +100,12 @@ MAX_SHOT_RETRIES  = 3                # per seedance_shot: generate + judge, retr
 COST_CEILING_USD  = 5.00             # SILENT safety net (D6/D19): Director never sees cost
 COST_WARN_FRACTION = 0.8             # log a warning once cost crosses this fraction of the ceiling
 MAX_SHOT_CONCURRENCY = 4             # Seedance is ~2min/gen — fan shots out concurrently
-EDITOR_MAX_EXTENSIBLE_S = 6.0        # max hold for a single card/moodboard (backstop vs 15s-card bug)
+
+# Editor pacing + voice-fit (social-native fast cutting)
+EDITOR_MAX_EXTENSIBLE_S = 4.0        # max hold for a single card/moodboard beat (was 6)
+EDITOR_TARGET_BEAT_S    = 2.0        # target hold per beat — punchy social cadence
+VIDEO_PLAYBACK_RATE     = 1.25       # speed-ramp seedance/real clips for snap (Remotion playbackRate)
+VOICE_MAX_ATEMPO        = 1.55       # max pitch-preserving voice speed-up the editor applies (ffmpeg atempo)
 
 # ---------------------------------------------------------------------------
 # Editor render service (Remotion — VERIFIED 4.0.468, docs/editor_findings.md)

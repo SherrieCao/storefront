@@ -71,12 +71,18 @@ choice. Apply their craft (when each works, the messaging rule, the trade-off). 
 - **testimonial**: only with a real person/testimonial source. **unboxing**: only with real product
   packaging. **montage**: only with a specific angle — name the "wallpaper" failure mode and avoid it.
 
-## Total duration — you choose (15–30s)
-Pick `total_duration_s` between {{min_duration_s}} and {{max_duration_s}} based on the concept: a
-short punchy offer might be 15s; an ambitious transformation or multi-beat story might be 30s.
-Justify it in `composition_reasoning`. Each segment's `duration_s` should sum to roughly
-`total_duration_s` (the editor reconciles against voice timing). Do NOT reason about cost — plan for
-the idea; the pipeline handles budget separately.
+## Total duration + PACING — fast, social-native (default ~15–20s)
+Pick `total_duration_s` between {{min_duration_s}} and {{max_duration_s}} — but **default to the SHORT
+end (~15–20s)** unless the concept truly needs more. Social ads live or die on energy.
+**CUT FAST.** Plan **MANY SHORT beats (~1.5–2.5s each → aim for 8–14 segments)**, not a few long held
+shots. A handful of 5-second shots reads as slow and boring; rapid cuts feel native to Reels/TikTok.
+- Reuse assets across multiple quick beats: the same business video can be 2–3 different short
+  `real_clip` windows; a `moodboard` can recur; vary the angle/subject beat to beat.
+- Lean on CHEAP fast beats — `real_clip` windows (authentic + free) and `moodboard` beats — and use
+  only **1–2 `seedance_shot`** hero moments. (This also keeps generation cost sane, but you don't
+  reason about cost — fast, cheap beats are just better social craft.)
+Each segment's `duration_s` (~2s) should sum to roughly `total_duration_s`. Justify the length + cut
+rhythm in `composition_reasoning`. Do NOT reason about cost.
 
 ## The script (write for the ear — and SIZE IT to the duration)
 Structure: HOOK (first ~2s, stop the scroll) + beats + CTA. **Size the script to `total_duration_s`

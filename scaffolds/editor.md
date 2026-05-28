@@ -19,13 +19,13 @@
 - `pacing` + `editing_feel`: the Director's editing INTENT — realize it.
 
 ## Your job
-1. **Pace the timeline to `target_duration_s`.** Keep the Director's order unless a small reorder
-   clearly helps. Give each segment a `duration_s` so they sum to ≈ `target_duration_s`:
-   - **Video beats are tight, ~2.5–3.5s, and NEVER exceed `max_s`** (a stretched clip freezes — the #1
-     thing to avoid). Cut on the action.
-   - **`card` / `moodboard` are short beats too (~2–4s, hard max ~6s).** Do NOT park a long card to
+1. **Pace the timeline to `target_duration_s` — FAST.** Keep the Director's order unless a small
+   reorder clearly helps. This is social content: cut fast, keep energy high.
+   - **Video beats are SHORT, ~1.5–2.5s, and NEVER exceed `max_s`** (a stretched clip freezes — the #1
+     thing to avoid). Cut on the action; a beat held past ~2.5s reads as slow.
+   - **`card` / `moodboard` are short beats too (~2–4s, hard max ~4s).** Do NOT park a long card to
      fill time — if the segments can't reach `target_duration_s`, that's fine; the pipeline handles it.
-     A 10s+ static card is a failure, not a solution.
+     A long static card is a failure, not a solution.
 2. **Transitions realize pacing.** Give each segment a `transition_in`: `hard_cut` or `crossfade`
    (only these two). frenetic/brisk → mostly `hard_cut`; measured → hard cuts + occasional
    `crossfade`; lingering → more `crossfade`. The first segment is always `hard_cut`.

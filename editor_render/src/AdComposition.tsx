@@ -9,11 +9,12 @@ const CROSSFADE_S = 0.4;
 
 // --- segment renderers -----------------------------------------------------
 
-const VideoSegment: React.FC<{src: string; trim?: [number, number]}> = ({src, trim}) => {
+const VideoSegment: React.FC<{src: string; trim?: [number, number]; rate?: number}> = ({src, trim, rate}) => {
   const {fps} = useVideoConfig();
   return (
     <OffthreadVideo
       src={staticFile(src)}
+      playbackRate={rate ?? 1}
       startFrom={trim ? Math.round(trim[0] * fps) : undefined}
       endAt={trim ? Math.round(trim[1] * fps) : undefined}
       style={{width: '100%', height: '100%', objectFit: 'cover'}}
@@ -21,10 +22,10 @@ const VideoSegment: React.FC<{src: string; trim?: [number, number]}> = ({src, tr
   );
 };
 
-// Moodboard: Nano Banana composition keyframe animated by Remotion (Ken Burns push).
+// Moodboard: Nano Banana composition keyframe animated by Remotion (a punchier Ken Burns push).
 const MoodboardSegment: React.FC<{src: string; durationInFrames: number}> = ({src, durationInFrames}) => {
   const frame = useCurrentFrame();
-  const scale = interpolate(frame, [0, durationInFrames], [1.05, 1.18], {extrapolateRight: 'clamp'});
+  const scale = interpolate(frame, [0, durationInFrames], [1.06, 1.28], {extrapolateRight: 'clamp'});
   return (
     <AbsoluteFill style={{backgroundColor: '#000', overflow: 'hidden'}}>
       <Img src={staticFile(src)} style={{width: '100%', height: '100%', objectFit: 'cover', transform: `scale(${scale})`}} />
@@ -32,21 +33,22 @@ const MoodboardSegment: React.FC<{src: string; durationInFrames: number}> = ({sr
   );
 };
 
-// Card segment -> the template library (templates/Cards.tsx). Falls back to EndCard.
-const CardSegment: React.FC<{template?: string; text?: string}> = ({template, text}) => {
+// Card segment -> the template library (templates/Cards.tsx). Photo-backed + palette accents.
+const CardSegment: React.FC<{template?: string; text?: string; bg?: string; palette?: string[]}> =
+  ({template, text, bg, palette}) => {
   const Card = CARD_TEMPLATES[template ?? 'EndCard'] ?? CARD_TEMPLATES.EndCard;
-  return <Card text={text} />;
+  return <Card text={text} bg={bg} palette={palette} />;
 };
 
-const renderSegment = (seg: Segment, durationInFrames: number) => {
+const renderSegment = (seg: Segment, durationInFrames: number, palette?: string[]) => {
   switch (seg.type) {
     case 'seedance_shot':
     case 'real_clip':
-      return <VideoSegment src={seg.src!} trim={seg.trim_s} />;
+      return <VideoSegment src={seg.src!} trim={seg.trim_s} rate={seg.playback_rate} />;
     case 'moodboard':
       return <MoodboardSegment src={seg.src!} durationInFrames={durationInFrames} />;
     case 'card':
-      return <CardSegment template={seg.card_template} text={seg.card_text} />;
+      return <CardSegment template={seg.card_template} text={seg.card_text} bg={seg.bg_src} palette={palette} />;
   }
 };
 
@@ -91,7 +93,7 @@ export const AdComposition: React.FC<{plan: EditPlan}> = ({plan}) => {
       {placed.map(({seg, from, dur, isXfade}, i) => (
         <Sequence key={i} from={from} durationInFrames={dur} name={`${seg.type}-${i}`}>
           <FadeWrap fadeInFrames={isXfade ? xfadeFrames : 0}>
-            {renderSegment(seg, dur)}
+            {renderSegment(seg, dur, plan.palette)}
           </FadeWrap>
         </Sequence>
       ))}
