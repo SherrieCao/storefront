@@ -134,4 +134,25 @@ This multi-gen rearchitecture is a new repository. The previous single-call repo
 read-only reference (`_reference/old_pipeline/`) — do not modify, do not import. The new project
 reuses the agent loop, tracing, triage, errors module, and scaffold structure as PATTERNS to follow;
 it does not import the old code. This is to avoid the half-built middle ground where new and old
-architecture are entangled.
+architecture are entangled. NOTE: this also overrides the main spec's "keep single-call behind a
+`SINGLE_CALL_MODE` flag" — we did NOT port single-call code; the fallback is running `_reference/`
+directly. (Recorded in docs/ARCHITECTURE.md so it isn't re-introduced.)
+
+## D19. Mixed-segment composition; Director picks length (15–30s)
+The ad is composed of heterogeneous segments, not a fixed list of Seedance shots: `seedance_shot`
+(generated, via the Shot Agent), `real_clip` (provided video, trimmed by Remotion), `moodboard`
+(Nano Banana composition keyframe animated by Remotion), and `card` (Remotion template). The Director
+picks total length within 15–30s based on the concept and mixes segment types freely. **The Director
+never reasons about cost at planning time** — plan creatively; the $5 ceiling (D6) is a pipeline-level
+safety net, not a creative constraint. (`SPEC_followup_mixed_segments.md`.)
+
+## D20. Director owns segment planning (no new agent)
+Segment selection and ordering is one creative composition decision, so it folds into the Director
+rather than a separate Composition Agent — keeping the single creative decision intact. A separate
+agent was considered and rejected as fragmenting one decision across two minds.
+
+## D21. The Seedance/Remotion boundary is a single bright line
+Seedance generates new video footage ONLY (the `seedance_shot` type). Remotion handles EVERYTHING
+else — moodboard composition + motion, real-clip trimming, card rendering, transitions, captions,
+audio mux. If a task could plausibly be either, choose Remotion. This one clean split is the
+architectural-simplicity lever: no fuzzy middle, no per-task decision.

@@ -28,3 +28,6 @@ spikes/out/
 
 # smoke-test scratch run dirs
 _smoke_runs*/
+
+# local test inputs (canonical copies live in _reference/, gitignored)
+inputs/
