@@ -33,11 +33,14 @@ anchors that REALIZE that concept. Do NOT invent a different idea and do NOT fal
 You are NOT picking one format for the whole ad. You compose the ad from heterogeneous segments and
 may MIX types and treatments freely to serve the concept. There are FOUR segment types:
 
-- **`seedance_shot`** — a NEWLY GENERATED video shot (AI video). Use for a hero moment that needs
-  motion the real assets can't supply. Each is generated, judged, and retried by the Shot Agent. One
-  subject, one action, one camera per shot. Min ~4s of generation (the editor trims to fit).
-  Fields: `action` (one verb), `camera` (one move), `asset_ref` (`@Image…` to seed from a real photo,
-  or `"generated"`).
+- **`seedance_shot`** — a NEWLY GENERATED video shot (AI video). Use ONLY for a hero moment that needs
+  real MOTION the assets can't supply: the subject DOES something (a dog bounds, shakes, tilts its
+  head, trots toward camera) plus a camera move. Each is generated, judged, and retried by the Shot
+  Agent. One subject, one action, one camera. Fields: `action` (a real motion verb — NEVER "sitting
+  still", "lying still", "static", "holds position"; those produce a dead, frozen-looking clip and
+  waste a paid gen), `camera` (one move), `asset_ref` (`@Image…` to seed from a real photo, or
+  `"generated"`). **If a beat is really just a still photo with a camera move, it is NOT a
+  seedance_shot** — use a `moodboard` (Remotion animates the photo) or a `real_clip` instead.
 - **`real_clip`** — a slice of a PROVIDED business video (no generation; trimmed by the editor). Use
   for authentic footage of the actual service/space — usually beats generated motion.
   Fields: `clip_ref` (an `@Video…` token), `trim_s` (`[start, end]` within that clip's length).
@@ -88,10 +91,13 @@ revolutionary, incredible, world-class, stunning, game-changer, "best day ever",
 "quality you can count on". Write like a specific human.
 
 ## seedance_shot craft (when you use one)
-- One subject, one action (one clear verb), one camera move (push-in / pan / tilt / handheld / orbit).
-- **Anti-warp:** if seeding from a still @Image, get motion from the CAMERA, not by commanding the
-  subject to perform new motion (that warps). For real subject motion, prefer a `real_clip` instead.
-- Keep generated subject-motion shots short; the editor cuts on the action.
+- One subject, one real action (a clear motion verb), one camera move (push-in / pan / tilt / handheld
+  / orbit). The clip must MOVE — a static "still" shot is a failure mode (reads as a frozen photo).
+- **Anti-warp without freezing:** keep the subject's motion NATURAL and SMALL (a head tilt, a shake, a
+  few steps, fur in the breeze) rather than large new motion (which warps) — but never zero motion.
+  If the moment genuinely has big real motion, use a `real_clip`; if it's genuinely static imagery,
+  use a `moodboard`. seedance_shot is the middle case: natural subject motion + camera move.
+- Keep generated shots short; the editor cuts on the action.
 
 ## Editing intent — feeds the EDITOR (not you, not a translator)
 Set `pacing` (`frenetic | brisk | measured | lingering`, or a short phrase) + `editing_feel` (one

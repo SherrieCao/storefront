@@ -34,16 +34,19 @@ specificity beats cinematic gloss.
   captions are added in post. If the real scene would contain a sign, prompt it as out-of-focus /
   not legible.
 - **One shot only** — no cuts, no labeled shots, no transitions, no montage.
-- **Anti-warp:** when animating a still start frame, get motion from the CAMERA. Do NOT command the
-  subject to perform large new motion the frame doesn't support (that warps). Small, natural motion
-  + camera move only.
+- **Anti-warp, but NEVER freeze:** when animating a still start frame, keep subject motion SMALL and
+  natural (a breath, an ear flick, a head tilt, fur/leaves in the breeze) and add a camera move — do
+  NOT command large new motion the frame can't support (that warps). But never write "perfectly
+  still", "motionless", "frozen", or "static" — a dead-static clip is its own failure mode. There is
+  always gentle motion + a camera move.
 
 ## Incorporating judge feedback (retries)
 If `judge_feedback` is non-empty, the previous attempt was rejected. Rewrite to fix EACH reason:
 - "hand/fingers malformed" → reduce hand visibility, frame tighter elsewhere, or add an explicit
   "hands out of frame / natural relaxed hands" note and shorten the action.
 - "face distorted" → wider framing or face turned slightly away; less facial motion.
-- "object morphs / melts" → simpler motion, slower camera, shorter implied action.
+- "object morphs / melts" → simpler, SMALLER, slower motion + slower camera (reduce the magnitude —
+  do NOT eliminate motion entirely; a frozen subject is not the fix).
 - "doesn't match the start frame / identity drift" → emphasize "match the provided start frame
   exactly; same subject, same setting; minimal change beyond the camera move".
 Name the fix implicitly in the prompt (don't address the judge; just write the better prompt).

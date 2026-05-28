@@ -88,11 +88,13 @@ def _line_timings(text: str, duration_ms: int) -> list[dict[str, Any]]:
 
 
 def _speed_for(pacing: str | None) -> float:
+    # Short-form ads want energetic delivery; the old map (~1.0) read as too slow. MiniMax cap is 2.0.
     p = (pacing or "").lower()
-    if "frenetic" in p: return 1.15
-    if "brisk" in p:    return 1.05
-    if "lingering" in p: return 0.9
-    return 1.0
+    if "frenetic" in p:  return 1.3
+    if "brisk" in p:     return 1.2
+    if "measured" in p:  return 1.1
+    if "lingering" in p: return 1.0
+    return 1.15
 
 
 def _emotion_for(mood: str) -> str:
