@@ -1,0 +1,24 @@
+# secrets
+.env
+
+# python
+.venv/
+__pycache__/
+*.pyc
+
+# node / remotion
+node_modules/
+editor_render/out/
+
+# run outputs
+runs/
+
+# read-only old pipeline: kept on disk for reference, not committed (it has its own git
+# history + large test media). Reuse PATTERNS from it, don't version a copy.
+_reference/
+
+# spike scratch outputs (binary; results captured in docs/*_findings.md)
+spikes/out/
+
+# os
+.DS_Store

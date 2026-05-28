@@ -1,0 +1,20 @@
+{
+  "name": "editor_render",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Remotion render service: edit-plan JSON -> mp4 (deterministic renderer).",
+  "scripts": {
+    "render": "remotion render Ad out/final.mp4",
+    "studio": "remotion studio"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.468",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "remotion": "4.0.468"
+  },
+  "devDependencies": {
+    "@types/react": "19.0.0",
+    "typescript": "5.4.5"
+  }
+}
