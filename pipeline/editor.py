@@ -1,14 +1,15 @@
 """Stage: Editor (Editor Agent + Remotion) — assemble the final ad.
 
-Two halves of the split (D2):
-  - Editor Agent (LLM): realizes the Director's pacing/editing_feel into an EDIT PLAN — segment order,
-    per-segment duration aligned to the voiceover, hard_cut/crossfade transitions, caption track.
-  - Renderer (deterministic): editor.py resolves each plan segment to its actual asset (per the bright
-    line D21 — Seedance clips from the Shot Agent; everything else assembled here), stages assets into
-    the Remotion project, writes 07_edit_plan.json, and runs `npx remotion render` -> 09_output/final.mp4.
+Split into two halves (visuals-first spine, D2):
+  - plan_timeline(): the Editor Agent (LLM) decides order + transitions + relative durations; this
+    function then ENFORCES a deterministic timeline whose length = the Director's `total_duration_s`
+    — video segments capped to their real clip length (no last-frame freeze), card/moodboard capped
+    at EDITOR_MAX_EXTENSIBLE_S. Returns per-segment start/end timestamps. NO voice, NO render.
+  - render(): one Remotion pass over the fixed timeline + the fitted voiceover + timestamp-accurate
+    captions -> 09_output/final.mp4.
 
-Flagged/failed shots are simply absent from the usable set, so the Editor assembles around them.
-Stubs offline: the Editor Agent falls back to a deterministic plan; Remotion still renders locally.
+The voice is generated BETWEEN these two (voice.run_voice fits the timeline), so the video length is
+the master clock and the voice fits it — not the reverse (which caused run 0003's 15s static card).
 
 NOT for: generating/fixing shots (Shot Agent) or creative concept (Director).
 """
@@ -24,34 +25,66 @@ from .translator import resolve_ref
 EDIT_PLAN_FILE = "07_edit_plan.json"
 OUTPUT_FILE = "09_output/final.mp4"
 _TRANSITIONS = {"hard_cut", "crossfade"}
+_CROSSFADE_S = 0.4    # MUST match editor_render/src/AdComposition.tsx CROSSFADE_S
+_MIN_SEG_S = 1.2
 
 
-def run_editor(run: Run, brief: dict[str, Any], shots_result: dict[str, Any],
-               voice: dict[str, Any], keyframes_map: dict[str, Any], inventory: dict[str, Any],
-               *, use_cache: bool = False) -> str:
-    out = run.dir / OUTPUT_FILE
-    if use_cache and out.exists():
-        run.log("Editor: loaded from cache"); return str(out)
+# --- PLAN: fix the visual timeline to total_duration_s (no voice, no render) -----------------------
 
+def plan_timeline(run: Run, brief: dict[str, Any], shots_result: dict[str, Any],
+                  keyframes_map: dict[str, Any], inventory: dict[str, Any]) -> dict[str, Any]:
     by_n = {str(s.get("n")): s for s in brief.get("segments", [])}
     clips = shots_result.get("clips", {})
     usable = _usable_segments(brief, clips, keyframes_map, inventory)
     if not usable:
         raise RuntimeError("Editor: no usable segments to assemble (all shots flagged?)")
-    run.log(f"Editor: {len(usable)} usable segments; designing edit plan")
+    target = float(brief.get("total_duration_s") or config.MIN_DURATION_S)
+    run.log(f"Editor: planning timeline for {len(usable)} segments to {target:.0f}s")
 
-    limits = _video_limits(usable, clips, inventory)           # {n: max display seconds} for video segs
-    plan = _editor_agent(run, usable, voice, brief, limits)    # LLM order/durations/transitions/captions
-    render_plan, sources = _resolve(run, plan, by_n, clips, keyframes_map, inventory, voice, limits)
+    limits = _video_limits(usable, clips, inventory)        # {n: max display s} for video segments
+    agent = _editor_agent(run, usable, brief, limits)       # LLM: order + durations + transitions
+    segs, sources = _build_segments(agent, by_n, clips, keyframes_map, inventory, limits)
+    _fit_to_total(run, segs, target)                        # clamp + reconcile durations to target
+    total_s = _assign_timestamps(segs)                      # cumulative start/end (crossfade-aware)
+
+    timeline = {"fps": config.FPS, "width": 1080, "height": 1920,
+                "segments": segs, "sources": sources, "total_s": round(total_s, 2),
+                "reasoning": agent.get("reasoning", "")}
+    run.log(f"Editor: timeline {total_s:.1f}s — "
+            + ", ".join(f"{s['type']}:{s['duration_s']:.1f}s" for s in segs))
+    return timeline
+
+
+def render(run: Run, timeline: dict[str, Any], voice: dict[str, Any], *, use_cache: bool = False) -> str:
+    """One Remotion pass: fixed timeline + fitted voice + timestamp-accurate captions."""
+    out = run.dir / OUTPUT_FILE
+    if use_cache and out.exists():
+        run.log("Editor: render loaded from cache"); return str(out)
+
+    segs = [{k: v for k, v in s.items() if not k.startswith("_")} for s in timeline["segments"]]
+    sources = dict(timeline["sources"])
+    audio = None
+    if voice.get("audio_path") and Path(voice["audio_path"]).exists():
+        sources["voiceover.mp3"] = voice["audio_path"]
+        audio = {"src": "voiceover.mp3", "gain": 1.0}
+    captions = [{"text": l["text"], "start_s": l["start_s"], "end_s": l["end_s"]}
+                for l in voice.get("lines", [])]
+
+    render_plan = {"fps": timeline["fps"], "width": timeline["width"], "height": timeline["height"],
+                   "segments": segs, "audio": audio, "captions": captions}
     (run.dir / EDIT_PLAN_FILE).write_text(json.dumps(
-        {"plan": render_plan, "agent_plan": plan, "reasoning": plan.get("reasoning", "")}, indent=2))
-    run.reason("Editor", None, plan.get("reasoning") or "Assembled the timeline to the voiceover.")
+        {"plan": render_plan, "total_s": timeline["total_s"], "reasoning": timeline.get("reasoning", "")},
+        indent=2))
+    run.reason("Editor", None, timeline.get("reasoning")
+               or f"Timeline fixed to {timeline['total_s']:.1f}s; voice fit to it; captions from word timestamps.")
 
     out.parent.mkdir(parents=True, exist_ok=True)
     _render(run, render_plan, sources, str(out))
     run.log(f"Editor: rendered {out}")
     return str(out)
 
+
+# --- helpers ---------------------------------------------------------------------------------------
 
 def _usable_segments(brief, clips, keyframes_map, inventory) -> list[dict[str, Any]]:
     """The Director's segments whose assets actually exist (drops flagged shots, missing refs)."""
@@ -69,8 +102,7 @@ def _usable_segments(brief, clips, keyframes_map, inventory) -> list[dict[str, A
 
 
 def _video_limits(usable: list[dict], clips: dict, inventory: dict) -> dict[str, float]:
-    """Max display seconds for each VIDEO segment (seedance_shot/real_clip) — its real content length.
-    A segment shown longer than this freezes on the last frame, so it's a hard cap."""
+    """Max display seconds for each VIDEO segment (its real content length). Shown longer -> freeze."""
     limits: dict[str, float] = {}
     for s in usable:
         n, t = str(s.get("n")), s.get("type")
@@ -78,8 +110,7 @@ def _video_limits(usable: list[dict], clips: dict, inventory: dict) -> dict[str,
             cl = _clip_duration(clips.get(n))
             if cl: limits[n] = round(cl, 2)
         elif t == "real_clip":
-            src = resolve_ref(inventory, str(s.get("clip_ref", "")))
-            cl = _clip_duration(src)
+            cl = _clip_duration(resolve_ref(inventory, str(s.get("clip_ref", ""))))
             trim = s.get("trim_s")
             cap = (trim[1] - trim[0]) if (isinstance(trim, list) and len(trim) == 2) else cl
             if cl and cap: cap = min(cap, cl)
@@ -87,65 +118,44 @@ def _video_limits(usable: list[dict], clips: dict, inventory: dict) -> dict[str,
     return limits
 
 
-def _editor_agent(run: Run, usable: list[dict], voice: dict, brief: dict,
-                  limits: dict[str, float]) -> dict[str, Any]:
-    """Editor Agent: LLM edit plan (order/durations/transitions/captions). Deterministic fallback."""
+def _editor_agent(run: Run, usable: list[dict], brief: dict, limits: dict[str, float]) -> dict[str, Any]:
+    """Editor Agent: order + per-segment duration + transitions (NOT captions — those come from the
+    voice's word timestamps). Durations are enforced to the target afterward; this is the creative
+    pass for pacing. Deterministic fallback offline."""
     user = json.dumps({
+        "target_duration_s": brief.get("total_duration_s"),
         "segments": [{"n": s.get("n"), "type": s.get("type"), "intent": s.get("intent", ""),
                       "duration_s": s.get("duration_s"),
-                      # video segments cannot be shown longer than max_s (they'd freeze); omit = extensible
                       **({"max_s": limits[str(s.get("n"))]} if str(s.get("n")) in limits else {})}
                      for s in usable],
-        "voice": {"duration_s": round((voice.get("duration_ms") or 0) / 1000, 2),
-                  "lines": voice.get("lines", [])},
         "pacing": brief.get("pacing"), "editing_feel": brief.get("editing_feel"),
-        "total_duration_s": brief.get("total_duration_s"),
     }, indent=2)
     scaffold = (config.SCAFFOLDS_DIR / "editor.md").read_text()
     raw, thinking, in_tok, out_tok = call_claude(
         config.MODEL_ROUTER["editor_agent"], scaffold, user,
-        stub=lambda: json.dumps(_fallback_plan(usable, voice, limits)))
+        stub=lambda: json.dumps(_fallback_plan(usable)))
     log_llm_call(run, "editor", config.MODEL_ROUTER["editor_agent"], scaffold[:300] + "...",
                  raw, in_tok, out_tok, 0, thinking)
     plan = parse_json(raw)
     if not plan.get("segments"):
-        plan = _fallback_plan(usable, voice, limits)
+        plan = _fallback_plan(usable)
     return plan
 
 
-def _fallback_plan(usable: list[dict], voice: dict, limits: dict[str, float]) -> dict[str, Any]:
-    """Deterministic plan: tight video beats capped at clip length; the closing extensible segment
-    (card/moodboard) absorbs the remaining voice time. Hard cuts; captions = voice lines."""
-    voice_s = (voice.get("duration_ms") or 0) / 1000
-    segs = []
-    for s in usable:
-        n, t = str(s.get("n")), s.get("type")
-        want = float(s.get("duration_s") or 4)
-        if n in limits:                 # video: keep tight, never exceed clip length
-            dur = min(want, limits[n], 3.5)
-        else:                           # card/moodboard: extensible
-            dur = want
-        segs.append({"n": s.get("n"), "type": t, "duration_s": round(dur, 2), "transition_in": "hard_cut"})
-    # absorb slack so audio doesn't outlast video: extend the last extensible (non-video) segment
-    if voice_s:
-        gap = voice_s - sum(x["duration_s"] for x in segs)
-        if gap > 0:
-            ext = next((x for x in reversed(segs) if str(x["n"]) not in limits), segs[-1])
-            ext["duration_s"] = round(ext["duration_s"] + gap, 2)
-    return {"segments": segs, "captions": voice.get("lines", []),
-            "reasoning": "Deterministic fallback: tight video beats capped at clip length; the closing "
-                         "card/moodboard absorbs the voice tail; hard cuts; captions paired to voice lines."}
+def _fallback_plan(usable: list[dict]) -> dict[str, Any]:
+    """Deterministic plan: Director order + durations, hard cuts. _fit_to_total reconciles lengths."""
+    return {"segments": [{"n": s.get("n"), "duration_s": float(s.get("duration_s") or 4),
+                          "transition_in": "hard_cut"} for s in usable],
+            "reasoning": "Deterministic fallback: Director order + durations, hard cuts."}
 
 
-def _resolve(run: Run, plan: dict, by_n: dict, clips: dict, keyframes_map: dict,
-             inventory: dict, voice: dict, limits: dict[str, float]) -> tuple[dict[str, Any], dict[str, str]]:
-    """Map the LLM plan's segments to real asset files (bright line: clips from Shot Agent; real_clip
-    trimmed here; moodboard keyframe animated here; card from templates). Clamps video segments to
-    their real length (no last-frame freeze) and lets the closing card/moodboard absorb the voice
-    tail. Returns (render_plan, sources)."""
+def _build_segments(agent: dict, by_n: dict, clips: dict, keyframes_map: dict,
+                    inventory: dict, limits: dict[str, float]) -> tuple[list[dict], dict[str, str]]:
+    """Resolve each agent segment to a render segment (bright line: clips from Shot Agent; real_clip
+    trimmed here; moodboard keyframe; card template). Carries `_max_s` (None = extensible)."""
     sources: dict[str, str] = {}
-    seg_out: list[dict[str, Any]] = []
-    for i, ps in enumerate(plan.get("segments", [])):
+    out: list[dict[str, Any]] = []
+    for i, ps in enumerate(agent.get("segments", [])):
         n = str(ps.get("n"))
         d = by_n.get(n)
         if not d:
@@ -154,15 +164,12 @@ def _resolve(run: Run, plan: dict, by_n: dict, clips: dict, keyframes_map: dict,
         trans = ps.get("transition_in") if ps.get("transition_in") in _TRANSITIONS else "hard_cut"
         if i == 0:
             trans = "hard_cut"
-        dur = max(0.5, float(ps.get("duration_s") or d.get("duration_s") or 3))
-        if n in limits:                     # video segment: never show longer than its real content
-            dur = min(dur, limits[n])
-        seg: dict[str, Any] = {"type": t, "duration_s": round(dur, 2), "transition_in": trans}
+        seg: dict[str, Any] = {"type": t, "duration_s": max(0.5, float(ps.get("duration_s") or 3)),
+                               "transition_in": trans, "_max_s": limits.get(n)}
         if t == "seedance_shot":
             seg["src"] = _stage(sources, f"shot_{n}.mp4", clips[n])
         elif t == "real_clip":
-            src = resolve_ref(inventory, str(d.get("clip_ref", "")))
-            seg["src"] = _stage(sources, f"clip_{n}.mp4", src)
+            seg["src"] = _stage(sources, f"clip_{n}.mp4", resolve_ref(inventory, str(d.get("clip_ref", ""))))
             if d.get("trim_s"):
                 seg["trim_s"] = d["trim_s"]
         elif t == "moodboard":
@@ -170,25 +177,52 @@ def _resolve(run: Run, plan: dict, by_n: dict, clips: dict, keyframes_map: dict,
         elif t == "card":
             seg["card_template"] = d.get("card_template", "EndCard")
             seg["card_text"] = d.get("card_text", "")
-        seg_out.append(seg)
+        out.append(seg)
+    return out, sources
 
-    # absorb slack so the audio doesn't outlast the video: extend the last EXTENSIBLE segment
-    # (card/moodboard — these legitimately hold) up to the voice length. Video segs stay capped.
-    voice_s = (voice.get("duration_ms") or 0) / 1000
-    if voice_s and seg_out:
-        gap = round(voice_s - sum(x["duration_s"] for x in seg_out), 2)
-        if gap > 0.1:
-            ext = next((x for x in reversed(seg_out) if x["type"] in ("card", "moodboard")), seg_out[-1])
-            ext["duration_s"] = round(ext["duration_s"] + gap, 2)
 
-    audio = None
-    if voice.get("audio_path") and Path(voice["audio_path"]).exists():
-        audio = {"src": _stage(sources, "voiceover.mp3", voice["audio_path"]), "gain": 1.0}
+def _fit_to_total(run: Run, segs: list[dict], target: float) -> None:
+    """Make the timeline length = target (the Director's total_duration_s), in place:
+    clamp video segs to their clip length and extensibles to EDITOR_MAX_EXTENSIBLE_S; then if the sum
+    is short, grow extensibles up to their cap (log a shortfall if still short — don't stretch video);
+    if the sum is long, shrink everything proportionally down to a floor."""
+    cap_ext = config.EDITOR_MAX_EXTENSIBLE_S
+    for s in segs:
+        if s["_max_s"] is not None:                       # video — never exceed its real content
+            s["duration_s"] = min(s["duration_s"], s["_max_s"])
+        else:                                             # card/moodboard — short capped beat
+            s["duration_s"] = min(s["duration_s"], cap_ext)
+    total = sum(s["duration_s"] for s in segs)
 
-    render_plan = {"fps": config.FPS, "width": 1080, "height": 1920,
-                   "segments": seg_out, "audio": audio,
-                   "captions": plan.get("captions", voice.get("lines", []))}
-    return render_plan, sources
+    if total < target - 0.05:                             # grow extensibles toward the target
+        deficit = target - total
+        for s in segs:
+            if s["_max_s"] is None and deficit > 0.05:
+                add = min(cap_ext - s["duration_s"], deficit)
+                s["duration_s"] += add; deficit -= add
+        if deficit > 0.5:
+            run.log(f"[coverage shortfall] visual timeline {target - deficit:.1f}s < target {target:.0f}s "
+                    f"— Director under-planned coverage; ending at the visual length (not stretching).")
+    elif total > target + 0.05:                           # shrink proportionally down to the floor
+        excess = total - target
+        room = sum(max(0.0, s["duration_s"] - _MIN_SEG_S) for s in segs)
+        if room > 0:
+            for s in segs:
+                s["duration_s"] -= excess * (max(0.0, s["duration_s"] - _MIN_SEG_S) / room)
+    for s in segs:
+        s["duration_s"] = round(s["duration_s"], 2)
+
+
+def _assign_timestamps(segs: list[dict]) -> float:
+    """Cumulative start/end per segment, accounting for crossfade overlap (mirrors the render). Returns
+    the timeline's real length (what the voice must fit)."""
+    cursor = 0.0
+    for i, s in enumerate(segs):
+        start = cursor if (i == 0 or s["transition_in"] != "crossfade") else max(0.0, cursor - _CROSSFADE_S)
+        s["start_s"] = round(start, 2)
+        s["end_s"] = round(start + s["duration_s"], 2)
+        cursor = s["end_s"]
+    return cursor
 
 
 def _stage(sources: dict[str, str], name: str, src: str | None) -> str:
@@ -198,8 +232,6 @@ def _stage(sources: dict[str, str], name: str, src: str | None) -> str:
 
 
 def _clip_duration(path: str | None) -> float | None:
-    """ffprobe a clip's real duration (seconds), or None. Used to cap a video segment's display time
-    so Remotion never holds a frozen last frame."""
     if not path or not Path(path).exists():
         return None
     try:
@@ -211,13 +243,11 @@ def _clip_duration(path: str | None) -> float | None:
 
 
 def _render(run: Run, render_plan: dict, sources: dict[str, str], out_path: str) -> None:
-    """Stage assets into editor_render/public/<run_id>/ and run `npx remotion render`. Renders the
-    plan deterministically. No external API cost (local CLI)."""
+    """Stage assets into editor_render/public/<run_id>/ and run `npx remotion render`."""
     pub = config.EDITOR_RENDER_DIR / "public" / run.run_id
     if pub.exists():
         shutil.rmtree(pub)
     pub.mkdir(parents=True, exist_ok=True)
-    # rewrite src/audio names to the per-run public subpath Remotion's staticFile resolves
     for name, src in sources.items():
         shutil.copy2(src, pub / name)
     prefixed = {**render_plan,

@@ -1,9 +1,29 @@
-# Spike findings — Voice / TTS (MiniMax on fal)
+# Spike findings — Voice / TTS
 
-**Date:** 2026-05-28 · **Status:** VERIFIED LIVE (real TTS call + timestamp probe).
+**Date:** 2026-05-28 · **Status:** VERIFIED LIVE.
 
-## Decision
-`MODEL_ROUTER["tts"] = "fal-ai/minimax/speech-02-hd"` (per operator instruction; MiniMax on fal).
+## Decision (updated) — ElevenLabs on fal, with timestamps
+`MODEL_ROUTER["tts"] = "fal-ai/elevenlabs/tts/eleven-v3"`. MiniMax (below) is SUPERSEDED: it returns no
+timestamps via fal and padded a time-list script to 25.5s (run 0003's 15s-card bug). ElevenLabs gives
+word/character timestamps AND paces naturally.
+
+### ElevenLabs eleven-v3 — VERIFIED LIVE
+- Endpoint `fal-ai/elevenlabs/tts/eleven-v3`. Params: `text`, `voice` (default "Rachel"),
+  `stability` (0–1), `similarity_boost`, `style`, **`speed` (0.7–1.2 ONLY — narrow, so size the
+  script to fit; don't rely on speed)**, `apply_text_normalization` (auto/on/off — controls spelling
+  out numbers like "9 AM"), `language_code`, **`timestamps: true`**.
+- Output: `{audio:{url}, timestamps:[ {characters:[...], character_start_times_seconds:[...],
+  character_end_times_seconds:[...]} , ... ]}` — **character-level alignment**, chunked into a list
+  (first chunk may be empty). Reconstruct per-word / per-line timing by flattening chars across all
+  chunks and taking the first char's start / last char's end of each line. This replaces the old
+  char-weighted timing estimate with REAL timestamps for caption sync + line→segment alignment.
+- **Pacing:** a 28-word FLOWING script → **13.6s** (~124 wpm, natural) vs MiniMax 25.5s for a 31-word
+  time-list. Rule of thumb for script-sizing: **~2.3 words/sec** (17s ≈ 40 words, 30s ≈ 70).
+- Cost: per-character (verify exact rate on first run; small vs Seedance). Keep the budget reserve.
+
+---
+## (Superseded) MiniMax on fal — kept for reference
+`fal-ai/minimax/speech-02-hd`.
 
 ## Verified params (fal API page)
 - `text` (required, ≤5000 chars), `voice_id` (default "Wise_Woman"), `speed` (0.5–2.0),

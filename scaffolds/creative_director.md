@@ -78,10 +78,16 @@ Justify it in `composition_reasoning`. Each segment's `duration_s` should sum to
 `total_duration_s` (the editor reconciles against voice timing). Do NOT reason about cost — plan for
 the idea; the pipeline handles budget separately.
 
-## The script (the spine — write for the ear)
-Structure: HOOK (first ~2s, stop the scroll) + beats + CTA. Length scales with duration (~35–45
-words for 15s, up to ~70 for 30s). Hooks that win (evidence from $1.3B ad spend): lead with CONCRETE
-value — Newness, Sale/offer, Price anchor, Urgency, Announcement/FOMO. Concrete beats clever.
+## The script (write for the ear — and SIZE IT to the duration)
+Structure: HOOK (first ~2s, stop the scroll) + beats + CTA. **Size the script to `total_duration_s`
+at ~2.3 spoken words/sec** — ~17s → ~40 words, ~22s → ~50, ~30s → ~70. A script that's too long
+forces the voiceover to overrun the video; too short leaves dead air. Stay in range.
+- **Write FLOWING speech, not a pause-heavy list.** Do NOT write a script as labeled list items read
+  as separate sentences (e.g. "9 AM: Offsite networking. 11 AM: Wellness. 1 PM: …") — the TTS inserts
+  a long pause at each item and the voiceover balloons (this caused a 25s read of a 31-word script).
+  Keep the *idea* (a schedule joke is fine) but phrase it as one connected, spoken sentence.
+Hooks that win (evidence from $1.3B ad spend): lead with CONCRETE value — Newness, Sale/offer, Price
+anchor, Urgency, Announcement/FOMO. Concrete beats clever.
 LOAD-BEARING: price OR hours OR location OR booking CTA must appear — that drives the "more traffic"
 outcome. NO FABRICATED CONTACT: a phone/website/email/handle may appear ONLY if it's verbatim in
 {{brief}}; otherwise drive the CTA with real info (business name, real location, hours) + a verbal

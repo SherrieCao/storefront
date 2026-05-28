@@ -44,8 +44,9 @@ MODEL_ROUTER = {
     # Keyframes: Nano Banana 2 on fal (VERIFIED, docs/nano_banana_findings.md).
     "keyframe":          "fal-ai/nano-banana-2",        # generate mode (text-to-image)
     "keyframe_edit":     "fal-ai/nano-banana-2/edit",   # generate_from_real (real-photo conditioning)
-    # Voice: MiniMax TTS on fal (VERIFIED, docs/voice_findings.md).
-    "tts":               "fal-ai/minimax/speech-02-hd",
+    # Voice: ElevenLabs eleven-v3 on fal — returns word/char timestamps, paces naturally
+    # (VERIFIED, docs/voice_findings.md; supersedes MiniMax which gave no timestamps + padded pauses).
+    "tts":               "fal-ai/elevenlabs/tts/eleven-v3",
     # Enhancement (targeted salvage of weak real assets).
     "enhance_upscale":   "fal-ai/clarity-upscaler",
 }
@@ -99,6 +100,7 @@ MAX_SHOT_RETRIES  = 3                # per seedance_shot: generate + judge, retr
 COST_CEILING_USD  = 5.00             # SILENT safety net (D6/D19): Director never sees cost
 COST_WARN_FRACTION = 0.8             # log a warning once cost crosses this fraction of the ceiling
 MAX_SHOT_CONCURRENCY = 4             # Seedance is ~2min/gen — fan shots out concurrently
+EDITOR_MAX_EXTENSIBLE_S = 6.0        # max hold for a single card/moodboard (backstop vs 15s-card bug)
 
 # ---------------------------------------------------------------------------
 # Editor render service (Remotion — VERIFIED 4.0.468, docs/editor_findings.md)

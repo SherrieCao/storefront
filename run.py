@@ -61,17 +61,19 @@ def main() -> int:
         step = "enhance";   enh.enhance_assets(run, inventory, use_cache=cached("enhance"))
         step = "keyframes"; keyframes = kf_.run_keyframes(run, brief, inventory, use_cache=cached("keyframes"))
         step = "shots";     shots = shots_.run_shots(run, brief, inventory, keyframes, use_cache=cached("shots"))
-        step = "voice";     voice = voice_.run_voice(run, brief, use_cache=cached("voice"))
-        step = "editor";    final = ed_.run_editor(run, brief, shots, voice, keyframes, inventory,
-                                                    use_cache=cached("editor"))
+        # Visuals-first spine: fix the visual timeline to the Director's length, THEN fit the voice to
+        # it, THEN render. plan_timeline runs whenever voice or editor will run fresh.
+        need_timeline = (not cached("voice")) or (not cached("editor"))
+        timeline = ed_.plan_timeline(run, brief, shots, keyframes, inventory) if need_timeline else {}
+        step = "voice";     voice = voice_.run_voice(run, brief, timeline, use_cache=cached("voice"))
+        step = "editor";    final = ed_.render(run, timeline, voice, use_cache=cached("editor"))
         step = "review"
-        edit_plan = _load(run.dir / "07_edit_plan.json").get("plan", {})
-        # check the render against what the EDIT PLAN intended to produce (the editor aligns to the
-        # voice, which may differ from the Director's target length) — not the Director's target.
-        expected_s = sum(float(s.get("duration_s") or 0) for s in edit_plan.get("segments", [])) \
-            or float(brief.get("total_duration_s") or 15)
+        edit_doc = _load(run.dir / "07_edit_plan.json")
+        # final length is now deterministic (= the planned timeline); check the render against it.
+        expected_s = float(edit_doc.get("total_s") or brief.get("total_duration_s") or 15)
         review = rev.run_review(run, final, expected_s)
-        lin.build_lineage(run, brief, concept, keyframes, shots, voice, edit_plan, review, final)
+        lin.build_lineage(run, brief, concept, keyframes, shots, voice,
+                          edit_doc.get("plan", {}), review, final)
         if shots.get("flagged"):
             run.log(f"[OPERATOR ACTION] {len(shots['flagged'])} shot(s) flagged — see flagged_shots.json")
         run.finalize()

@@ -1,16 +1,14 @@
-"""Stage: Voice (one MiniMax TTS call on fal) — clean voiceover + per-line caption timing.
+"""Stage: Voice (ElevenLabs TTS on fal) — voiceover fit to the assembled timeline, real timestamps.
 
-A single fal call (fal-ai/minimax/speech-02-hd) turns the Director's `speech` into a clean mp3 —
-fixing the robotic native Seedance voice (D8). Voice direction (speed/emotion) comes from the
-Director's pacing/mood.
+Visuals-first spine: the editor fixes the visual timeline to the Director's `total_duration_s` FIRST,
+then this stage generates the voice to FIT that timeline (length `timeline.total_s`). ElevenLabs
+eleven-v3 returns word/character-level timestamps (`timestamps: true`), so caption lines are timed to
+the real audio (not estimated), and the voice never outlasts the video.
 
-Line-level timestamps: the fal endpoint returns only {audio, duration_ms} (subtitle_enable is
-silently ignored — verified, docs/voice_findings.md), so we DERIVE per-line timing locally: split
-`speech` into sentences and distribute duration_ms weighted by character count. The Editor consumes
-{audio_path, duration_ms, lines:[{text,start_s,end_s}]} and never assumes fal provided timing.
+If the render overshoots the timeline, re-render once at a higher (clamped) speed; ElevenLabs `speed`
+caps at 1.2, so the Director also sizes the script to the duration (scaffold) to fit naturally.
 
-Stubs offline (no FAL_KEY): a real silent mp3 of estimated duration + evenly-split line timings, so
-the Editor still assembles end-to-end.
+Stubs offline (no FAL_KEY): a silent mp3 of `total_s` + evenly-split lines, so the Editor still runs.
 
 NOT for: creative decisions or assembly.
 """
@@ -22,10 +20,11 @@ from .tracing import Run
 
 VOICE_DIR = "06_voice"
 RESULT_FILE = "06_voice/voice.json"
-_WORDS_PER_SEC = 3.3   # spike calibration: ~30 words -> 9.0s
+_VOICE_ID = "Rachel"
 
 
-def run_voice(run: Run, brief: dict[str, Any], *, use_cache: bool = False) -> dict[str, Any]:
+def run_voice(run: Run, brief: dict[str, Any], timeline: dict[str, Any],
+              *, use_cache: bool = False) -> dict[str, Any]:
     out_dir = run.dir / VOICE_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
     cache = run.dir / RESULT_FILE
@@ -33,9 +32,8 @@ def run_voice(run: Run, brief: dict[str, Any], *, use_cache: bool = False) -> di
         run.log("Voice: loaded from cache"); return json.loads(cache.read_text())
 
     text = (brief.get("speech") or brief.get("script") or "").strip()
+    target_s = float(timeline.get("total_s") or brief.get("total_duration_s") or config.MIN_DURATION_S)
     mp3 = out_dir / "voiceover.mp3"
-    speed = _speed_for(brief.get("pacing"))
-    emotion = _emotion_for(brief.get("mood", ""))
 
     if not text:
         run.log("Voice: no speech in brief — empty track")
@@ -43,67 +41,109 @@ def run_voice(run: Run, brief: dict[str, Any], *, use_cache: bool = False) -> di
         cache.write_text(json.dumps(result, indent=2)); return result
 
     if not config.FAL_KEY:
-        duration_ms = int(len(text.split()) / _WORDS_PER_SEC * 1000)
-        _silent_mp3(str(mp3), duration_ms / 1000)
-        run.log(f"Voice: STUB silent mp3 (~{duration_ms/1000:.1f}s est for {len(text.split())} words)")
-    else:
-        budget.check_ceiling(run, budget.tts_call(len(text)), "voice")
-        import fal_client
-        res = fal_client.subscribe(config.MODEL_ROUTER["tts"], arguments={
-            "text": text, "voice_id": "Wise_Woman", "speed": speed, "emotion": emotion,
-            "output_format": "url"}, with_logs=False)
-        duration_ms = int(res.get("duration_ms") or 0)
-        urllib.request.urlretrieve(res["audio"]["url"], mp3)
-        run.add_cost("voice", budget.tts_call(len(text)))
-        run.trace({"step": "voice", "type": "fal_output", "duration_ms": duration_ms,
-                   "url": res["audio"]["url"]})
-        run.log(f"Voice: rendered {duration_ms/1000:.1f}s (speed={speed}, emotion={emotion})")
+        _silent_mp3(str(mp3), target_s)
+        lines = _even_lines(text, target_s)
+        run.log(f"Voice: STUB silent mp3 ({target_s:.1f}s, {len(lines)} lines)")
+        result = {"audio_path": str(mp3), "duration_ms": int(target_s * 1000), "lines": lines}
+        cache.write_text(json.dumps(result, indent=2)); return result
 
-    lines = _line_timings(text, duration_ms)
-    result = {"audio_path": str(mp3), "duration_ms": duration_ms, "lines": lines,
-              "voice_id": "Wise_Woman", "speed": speed, "emotion": emotion}
+    speed = 1.0
+    lines, dur_s = _eleven_render(run, text, str(mp3), speed)
+    # fit: if the voice overruns the visual timeline, re-render once a bit faster (ElevenLabs cap 1.2)
+    if dur_s > target_s * 1.05:
+        speed = min(1.2, round(speed * dur_s / target_s, 2))
+        run.log(f"Voice: {dur_s:.1f}s > timeline {target_s:.1f}s — re-rendering at speed {speed}")
+        lines, dur_s = _eleven_render(run, text, str(mp3), speed)
+        if dur_s > target_s + 0.6:
+            run.log(f"Voice: still {dur_s:.1f}s at max speed — script is long for {target_s:.0f}s "
+                    f"(Director should shorten the script or raise total_duration_s).")
+
+    result = {"audio_path": str(mp3), "duration_ms": int(dur_s * 1000), "lines": lines,
+              "voice": _VOICE_ID, "speed": speed, "timeline_total_s": target_s}
     cache.write_text(json.dumps(result, indent=2))
     run.reason("Voice", None,
-               f"One MiniMax TTS call ({duration_ms/1000:.1f}s); {len(lines)} caption lines timed "
-               f"locally (char-weighted) since fal returns no timestamps.")
+               f"ElevenLabs voiceover fit to the {target_s:.1f}s timeline (rendered {dur_s:.1f}s, "
+               f"speed {speed}); {len(lines)} caption lines from real word timestamps.")
+    run.log(f"Voice: {dur_s:.1f}s, {len(lines)} lines (speed {speed})")
     return result
 
 
-def _line_timings(text: str, duration_ms: int) -> list[dict[str, Any]]:
-    """Split into sentences and distribute the total duration weighted by character count — the
-    local caption timing the Editor uses (fal gives no per-line timestamps)."""
+def _eleven_render(run: Run, text: str, dst: str, speed: float) -> tuple[list[dict], float]:
+    """One ElevenLabs call (timestamps on). Saves the mp3, returns (caption lines, duration_s)."""
+    budget.check_ceiling(run, budget.tts_call(len(text)), "voice")
+    import fal_client
+    res = fal_client.subscribe(config.MODEL_ROUTER["tts"], arguments={
+        "text": text, "voice": _VOICE_ID, "stability": 0.5, "speed": speed,
+        "timestamps": True}, with_logs=False)
+    run.add_cost("voice", budget.tts_call(len(text)))
+    audio = res.get("audio")
+    url = audio.get("url") if isinstance(audio, dict) else audio
+    urllib.request.urlretrieve(url, dst)
+    run.trace({"step": "voice", "type": "fal_output", "speed": speed, "url": url})
+    lines = _lines_from_timestamps(res.get("timestamps") or [])
+    dur_s = _duration(dst) or (lines[-1]["end_s"] if lines else 0.0)
+    return lines, dur_s
+
+
+def _lines_from_timestamps(chunks: list[dict]) -> list[dict[str, Any]]:
+    """Reconstruct per-sentence caption lines from ElevenLabs char-level timestamps. Flattens the
+    chunked character arrays, then splits into sentences on . ! ? — each line timed by its first
+    char's start and last char's end (real audio timing, no estimate)."""
+    chars: list[str] = []
+    starts: list[float] = []
+    ends: list[float] = []
+    for c in chunks:
+        cs = c.get("characters") or []
+        chars += cs
+        starts += (c.get("character_start_times_seconds") or [])
+        ends += (c.get("character_end_times_seconds") or [])
+    n = min(len(chars), len(starts), len(ends))
+    if not n:
+        return []
+    lines: list[dict[str, Any]] = []
+    buf, first = "", None
+    for i in range(n):
+        ch = chars[i]
+        if buf == "" and ch.strip() == "":
+            continue                                  # skip leading whitespace
+        if first is None:
+            first = i
+        buf += ch
+        if ch in ".!?" and (i + 1 >= n or chars[i + 1].strip() == "" or chars[i + 1] in ".!?"):
+            lines.append({"text": buf.strip(), "start_s": round(starts[first], 2),
+                          "end_s": round(ends[i], 2)})
+            buf, first = "", None
+    if buf.strip() and first is not None:
+        lines.append({"text": buf.strip(), "start_s": round(starts[first], 2),
+                      "end_s": round(ends[n - 1], 2)})
+    return lines
+
+
+def _even_lines(text: str, total_s: float) -> list[dict[str, Any]]:
+    """Offline stub: split into sentences, distribute total_s by character count."""
     parts = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
     if not parts:
         return []
     total_chars = sum(len(p) for p in parts) or 1
-    dur_s = duration_ms / 1000.0
     out, cursor = [], 0.0
     for p in parts:
-        span = dur_s * (len(p) / total_chars)
+        span = total_s * (len(p) / total_chars)
         out.append({"text": p, "start_s": round(cursor, 2), "end_s": round(cursor + span, 2)})
         cursor += span
     if out:
-        out[-1]["end_s"] = round(dur_s, 2)   # snap the last line to the true end
+        out[-1]["end_s"] = round(total_s, 2)
     return out
-
-
-def _speed_for(pacing: str | None) -> float:
-    # Short-form ads want energetic delivery; the old map (~1.0) read as too slow. MiniMax cap is 2.0.
-    p = (pacing or "").lower()
-    if "frenetic" in p:  return 1.3
-    if "brisk" in p:     return 1.2
-    if "measured" in p:  return 1.1
-    if "lingering" in p: return 1.0
-    return 1.15
-
-
-def _emotion_for(mood: str) -> str:
-    m = mood.lower()
-    if any(w in m for w in ("warm", "upbeat", "happy", "playful", "fun", "comedic")): return "happy"
-    if any(w in m for w in ("calm", "soothing", "gentle")):                            return "neutral"
-    return "neutral"
 
 
 def _silent_mp3(dst: str, dur_s: float) -> None:
     subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono",
                     "-t", f"{max(0.5, dur_s):.2f}", "-q:a", "9", dst], capture_output=True)
+
+
+def _duration(path: str) -> float | None:
+    try:
+        r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                            "-of", "default=nw=1:nk=1", path], capture_output=True, text=True, timeout=10)
+        return float(r.stdout.strip())
+    except Exception:
+        return None
