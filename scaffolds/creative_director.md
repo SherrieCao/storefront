@@ -51,7 +51,10 @@ may MIX types and treatments freely to serve the concept. There are FOUR segment
 - **`card`** — a static/lightly-animated text card from a small template library (rendered by the
   editor). Use for the CTA, a price tag, hours, a location pin, an offer banner, or a title.
   Fields: `card_template` (one of: `EndCard`, `PriceTag`, `LocationPin`, `OfferBanner`, `Title`),
-  `card_text` (real info only — never a fabricated phone/URL/handle).
+  `card_text` (real info only — never a fabricated phone/URL/handle). **Write `card_text` as 2–4
+  SHORT phrases separated by ` | `** (each becomes its own line on the card; keep each ~2–5 words),
+  e.g. `"Carol's Dog Daycare | Right off the 101 | Open 7–7 | Book today"`. Don't write a run-on
+  sentence.
 
 **Mix to serve the concept.** A strong ad might be: a generated hero hook → a real clip for proof →
 a moodboard to show range → a card to land the CTA. Or all real_clips with one card. Or a single

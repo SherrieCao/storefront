@@ -95,6 +95,15 @@ def render(run: Run, timeline: dict[str, Any], voice: dict[str, Any], *, use_cac
         sources["voiceover.mp3"] = vstaged
         audio = {"src": "voiceover.mp3", "gain": 1.0}
 
+    # Cards carry their own on-screen text — suppress the caption track over card windows so the two
+    # don't collide. (Caption times are in the same video timeline as the segment start/end.)
+    card_windows = [(s.get("start_s", 0.0), s.get("end_s", 0.0))
+                    for s in timeline["segments"] if s.get("type") == "card"]
+    def _over_card(c):
+        mid = (c["start_s"] + c["end_s"]) / 2
+        return any(a <= mid < b for a, b in card_windows)
+    captions = [c for c in captions if not _over_card(c)]
+
     render_plan = {"fps": timeline["fps"], "width": timeline["width"], "height": timeline["height"],
                    "segments": segs, "audio": audio, "captions": captions,
                    "palette": timeline.get("palette", [])}

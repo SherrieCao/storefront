@@ -64,10 +64,12 @@ def run_concept(run: Run, inventory: dict[str, Any], *, use_cache: bool = False,
         return parse_json(raw), thinking
 
     # self-correcting critic loop: produce -> review (4 lenses) -> regenerate with feedback
-    fb, concept, thinking, verdict = feedback, {}, None, {}
+    fb, concept, thinking, verdict, attempts = feedback, {}, None, {}, []
     for attempt in range(1, config.MAX_CREATIVE_RETRIES + 1):
         concept, thinking = _produce(fb)
         verdict = reviewers.review(run, "concept", concept, ctx)
+        attempts.append({"attempt": attempt, "passed": verdict["pass"], "scores": verdict["scores"],
+                         "failed_lenses": verdict["failed_lenses"], "improvement": verdict["improvement"]})
         if verdict["pass"]:
             break
         fb = verdict["improvement"]
@@ -75,7 +77,7 @@ def run_concept(run: Run, inventory: dict[str, Any], *, use_cache: bool = False,
 
     concept["_review"] = {"passed": verdict.get("pass", True), "scores": verdict.get("scores", {}),
                           "failed_lenses": verdict.get("failed_lenses", []),
-                          "improvement": verdict.get("improvement", "")}
+                          "improvement": verdict.get("improvement", ""), "attempts": attempts}
     cache.write_text(json.dumps(concept, indent=2))
     _render_md(run, concept)
 

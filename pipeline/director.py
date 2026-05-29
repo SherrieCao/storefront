@@ -64,14 +64,18 @@ def run_director(run: Run, inventory: dict[str, Any], concept: dict[str, Any] | 
         return _validate(parse_json(raw)), thinking
 
     # self-correcting critic loop: produce -> review (4 lenses) -> regenerate with feedback
-    fb, brief, thinking, verdict = None, None, None, {}
+    fb, brief, thinking, verdict, attempts = None, None, None, {}, []
     for attempt in range(1, config.MAX_CREATIVE_RETRIES + 1):
         brief, thinking = _produce(fb)
         if brief is None:                       # invalid/empty brief — treat as a fail, regenerate
             fb = "Output was not a valid brief. Return the required JSON with a non-empty segments[]."
+            attempts.append({"attempt": attempt, "passed": False, "failed_lenses": ["invalid_json"],
+                             "improvement": fb})
             run.log(f"Director: attempt {attempt} produced an invalid brief — regenerating")
             continue
         verdict = reviewers.review(run, "director", brief, ctx)
+        attempts.append({"attempt": attempt, "passed": verdict["pass"], "scores": verdict["scores"],
+                         "failed_lenses": verdict["failed_lenses"], "improvement": verdict["improvement"]})
         if verdict["pass"]:
             break
         fb = verdict["improvement"]
@@ -81,7 +85,7 @@ def run_director(run: Run, inventory: dict[str, Any], concept: dict[str, Any] | 
 
     brief["_review"] = {"passed": verdict.get("pass", True), "scores": verdict.get("scores", {}),
                         "failed_lenses": verdict.get("failed_lenses", []),
-                        "improvement": verdict.get("improvement", "")}
+                        "improvement": verdict.get("improvement", ""), "attempts": attempts}
     cache.write_text(json.dumps(brief, indent=2))
 
     segs = brief.get("segments", [])
