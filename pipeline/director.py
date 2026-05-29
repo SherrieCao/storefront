@@ -54,7 +54,7 @@ def run_director(run: Run, inventory: dict[str, Any], concept: dict[str, Any] | 
         run, "director", scaffold, model, ["inspect_asset", "trend_lookup", "design_hook"],
         user_text=user_text, image_paths=image_paths, video_paths=video_paths,
         max_iterations=6,
-        stub=lambda: (_stub_director(), "STUB thinking: no GEMINI_API_KEY set", 0, 0))
+        stub=lambda: (_stub_director(inventory), "STUB thinking: no GEMINI_API_KEY set", 0, 0))
 
     brief = parse_json(raw)
     brief = _validate(brief)
@@ -120,7 +120,11 @@ def _asset_summary(inv: dict) -> list[dict]:
 
 
 def _load_scaffold(inv: dict) -> str:
-    t = (config.SCAFFOLDS_DIR / "creative_director.md").read_text()
+    # Inject the whole multi-vertical playbook (formats + per-vertical "what converts" + hooks) so the
+    # Director reasons WITH Motion's data — vertical-agnostic; the model picks the row for this brief.
+    from .refs import reference_block
+    t = (config.SCAFFOLDS_DIR / "creative_director.md").read_text() \
+        + reference_block(["ad_formats.md", "smb_verticals.md", "hooks.md"])
     return (t.replace("{{business}}", str(inv.get("business", "")))
              .replace("{{brief}}", str(inv.get("brief", "")))
              .replace("{{has_before_after}}", str(inv.get("has_before_after", False)))
@@ -130,34 +134,33 @@ def _load_scaffold(inv: dict) -> str:
              .replace("{{max_duration_s}}", str(config.MAX_DURATION_S)))
 
 
-def _stub_director() -> str:
-    """Canned mixed-segment brief so offline/no-key runs complete (the real loop runs only with a key)."""
+def _stub_director(inv: dict[str, Any] | None = None) -> str:
+    """Vertical-NEUTRAL canned brief so offline/no-key runs complete for ANY business (the real loop
+    runs only with a key). Uses the actual business name; no hardcoded vertical."""
+    biz = (inv or {}).get("business", "this local business")
     return json.dumps({
-        "creative_angle": "STUB: the commute-friendly daycare right off the 101 — drop-off as a ritual.",
-        "format_note": "mixes a hero seedance_shot, a real clip, a moodboard, and a closing card",
-        "total_duration_s": 22,
-        "composition_reasoning": "STUB: a generated hero moment opens, real footage builds trust, a "
-                                 "moodboard consolidates scattered photos, a card lands the CTA.",
-        "script": "Right off the 101. Drop your pup with people who actually know them. "
-                  "Carol's Dog Daycare — open seven to seven, walk-ins welcome.",
-        "script_reasoning": "Local-recognition hook + concrete hours + walk-ins CTA.",
-        "speech": "Right off the 101. Drop your pup with people who actually know them. "
-                  "Carol's Dog Daycare — open seven to seven, walk-ins welcome.",
-        "mood": "warm, upbeat, neighborhood",
+        "creative_angle": f"STUB: an authentic, specific look at {biz} (offline placeholder).",
+        "total_duration_s": 18,
+        "composition_reasoning": "STUB: a real-footage open, distinct quick beats, a moodboard of real "
+                                 "photos, a clean CTA card.",
+        "script": f"STUB voiceover for {biz}: real, specific, and worth the trip. Come see for yourself.",
+        "script_reasoning": "STUB placeholder script (offline).",
+        "speech": f"STUB voiceover for {biz}: real, specific, and worth the trip. Come see for yourself.",
+        "mood": "warm, authentic, local",
         "pacing": "brisk",
-        "editing_feel": "clean hard cuts with one soft crossfade into the moodboard, room to land the CTA",
-        "hook": {"hook_visual": "a happy dog bounding toward camera at drop-off", "hook_line": "Right off the 101.",
-                 "mechanic": "relatability", "why": "stub", "cut_dead_first_second": True},
+        "editing_feel": "fast clean hard cuts with one soft crossfade into the closing card",
+        "hook": {"hook_visual": "the strongest real asset, in motion", "hook_line": "STUB hook line.",
+                 "mechanic": "newness", "why": "stub", "cut_dead_first_second": True},
         "segments": [
-            {"n": 1, "type": "seedance_shot", "duration_s": 4, "intent": "hero hook: dog at drop-off",
-             "action": "dog bounds toward camera", "camera": "low push-in", "asset_ref": "generated",
+            {"n": 1, "type": "real_clip", "duration_s": 2.5, "intent": "authentic opener",
+             "clip_ref": "@Video1", "trim_s": [0, 2.5], "why": "real footage hooks"},
+            {"n": 2, "type": "seedance_shot", "duration_s": 2.5, "intent": "hero motion beat",
+             "action": "natural subject motion", "camera": "slow push-in", "asset_ref": "@Image1",
              "why": "motion the stills can't supply"},
-            {"n": 2, "type": "real_clip", "duration_s": 4, "intent": "real footage of the yard",
-             "clip_ref": "@Video1", "trim_s": [0, 4], "why": "authentic proof"},
-            {"n": 3, "type": "moodboard", "duration_s": 6, "intent": "consolidate happy-dog photos",
-             "moodboard_assets": ["@Image1", "@Image2", "@Image3"], "why": "scattered assets -> one designed frame"},
-            {"n": 4, "type": "card", "duration_s": 3, "intent": "CTA", "card_template": "OfferBanner",
-             "card_text": "Open 7-7 · Walk-ins welcome", "why": "land the offer cleanly"},
+            {"n": 3, "type": "moodboard", "duration_s": 3, "intent": "consolidate real photos",
+             "moodboard_assets": ["@Image2", "@Image3"], "why": "scattered assets -> one designed frame"},
+            {"n": 4, "type": "card", "duration_s": 3, "intent": "CTA", "card_template": "EndCard",
+             "card_text": "Come see for yourself", "why": "land the CTA cleanly"},
         ],
         "_stub": True,
     })

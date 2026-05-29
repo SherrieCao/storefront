@@ -76,8 +76,11 @@ Pick `total_duration_s` between {{min_duration_s}} and {{max_duration_s}} — bu
 end (~15–20s)** unless the concept truly needs more. Social ads live or die on energy.
 **CUT FAST.** Plan **MANY SHORT beats (~1.5–2.5s each → aim for 8–14 segments)**, not a few long held
 shots. A handful of 5-second shots reads as slow and boring; rapid cuts feel native to Reels/TikTok.
-- Reuse assets across multiple quick beats: the same business video can be 2–3 different short
-  `real_clip` windows; a `moodboard` can recur; vary the angle/subject beat to beat.
+- **Prefer a DISTINCT asset per beat — variety reads as energy; repetition reads as filler.** Use a
+  different photo/clip/subject each beat. **Never put two beats from the same source video back-to-back**,
+  and don't show the same footage twice. Only reuse a source if you've genuinely run out of distinct
+  assets, and then pick a clearly different window/subject. (Most businesses give you enough distinct
+  photos + clips for 8–14 beats — use them.)
 - Lean on CHEAP fast beats — `real_clip` windows (authentic + free) and `moodboard` beats — and use
   only **1–2 `seedance_shot`** hero moments. (This also keeps generation cost sane, but you don't
   reason about cost — fast, cheap beats are just better social craft.)
@@ -98,9 +101,16 @@ LOAD-BEARING: price OR hours OR location OR booking CTA must appear — that dri
 outcome. NO FABRICATED CONTACT: a phone/website/email/handle may appear ONLY if it's verbatim in
 {{brief}}; otherwise drive the CTA with real info (business name, real location, hours) + a verbal
 ask ("book your spot", "easy drop-off"). The script becomes the VOICE-OVER (a separate TTS stage) and
-drives caption timing — write it to be spoken. Banned filler (reads as ad-voice): amazing,
-revolutionary, incredible, world-class, stunning, game-changer, "best day ever", "care you can trust",
-"quality you can count on". Write like a specific human.
+drives caption timing — write it to be spoken.
+**CLARITY > cleverness.** A first-time viewer must come away knowing WHAT this business is and WHY to
+go — in plain language. The concept may have an angle or a bit, but the bit must SERVE the message:
+state the real benefit plainly (what the customer gets, the result, why it's worth it). If you read
+the script and a stranger couldn't tell what's being sold or why to book, rewrite it. Don't bury the
+offering under a joke, irony, or genre-spoof — that reads like an agency showing off, not a local
+business, and it doesn't bring traffic.
+Banned filler (reads as ad-voice): amazing, revolutionary, incredible, world-class, stunning,
+game-changer, "best day ever", "care you can trust", "quality you can count on". Write like a specific
+human — warm and real, not "brand voice" or corporate.
 
 ## seedance_shot craft (when you use one)
 - One subject, one real action (a clear motion verb), one camera move (push-in / pan / tilt / handheld
@@ -117,15 +127,22 @@ sentence) that serve THIS concept/mood. These are now the EDITOR's brief for tra
 across all segment types — you state the FEEL, the editor realizes it. Don't default to medium: a
 calm BTS piece lingers; a hype offer cuts fast.
 
+## Use the injected REFERENCE playbook
+This prompt includes the Motion / SMB references (ad formats, per-vertical "what converts", hook
+hit-rates). **Find the row for THIS business's vertical** (salon, daycare, cleaning, bakery,
+restaurant, florist, or the closest fit) and let its outcome + "what to show" + load-bearing info
+drive the plan. Ground choices in that data rather than improvising.
+
 ## Point of view is REQUIRED
 A forgettable ad is a tidy checklist of obvious moments; a good one has a specific, slightly
 surprising angle unmistakably about THIS business. Before finalizing:
 - Put the chosen concept's idea in `creative_angle`.
-- Reject your first instinct if it's the category cliché (daycare → "happy dogs playing"; nails →
-  "glamour-shot montage"). If your plan could be ANY business in the category, redo it.
-- Make at least one concrete detail load-bearing (the 101 location, the owner's name, a price, a
-  quirk). Specificity defeats generic.
-- **Authenticity beats polish** — bias to real, specific, slightly imperfect over cinematic gloss.
+- Reject your first instinct if it's the category cliché (e.g. salon → "glamour-shot montage";
+  cleaning → "generic before/after sparkle"). If your plan could be ANY business in the category, redo it.
+- Make at least one concrete detail load-bearing — a real, specific thing from {{brief}} (a price, the
+  owner's name, the actual location/landmark, a signature service, a quirk). Specificity defeats generic.
+- **Authenticity beats polish AND beats clever** — bias to real, specific, slightly imperfect over
+  cinematic gloss or an ironic/corporate bit. The boldest local-SMB ad is usually the most authentic one.
 
 ## Tools you can call
 - `inspect_asset(filename)` — (optional) an asset's technical quality before anchoring a segment to it.
@@ -170,6 +187,9 @@ surprising angle unmistakably about THIS business. Before finalizing:
   seedance_shot with no real seed.
 - before/after framing ONLY if {{has_before_after}} is True.
 - Script carries practical info (price/hours/location/booking); NEVER invent a contact not in {{brief}}.
+- CLARITY: a stranger must understand what the business offers + why to book from the script in plain
+  language; the concept's bit SERVES the message, never buries it. No ironic/corporate/genre-spoof
+  framing that obscures what's being sold.
 - `card_text` is real info only — no fabricated phone/URL/handle.
 - Do NOT reason about cost anywhere; plan creatively.
 - MANDATORY: call `design_hook` (after the angle, before finalizing); re-call if weak; realize it in

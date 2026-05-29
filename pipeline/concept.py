@@ -47,7 +47,7 @@ def run_concept(run: Run, inventory: dict[str, Any], *, use_cache: bool = False)
     }, indent=2)
 
     if not config.GEMINI_API_KEY:                       # own stub — do NOT reuse the director-stub
-        raw, thinking = _stub_concept(), "STUB thinking: no GEMINI_API_KEY set"
+        raw, thinking = _stub_concept(inventory), "STUB thinking: no GEMINI_API_KEY set"
     else:
         t0 = time.time()
         raw, thinking, in_tok, out_tok = call_gemini_multimodal(
@@ -109,7 +109,10 @@ def _render_md(run: Run, concept: dict[str, Any]) -> None:
 
 
 def _load_scaffold(inv: dict) -> str:
-    t = (config.SCAFFOLDS_DIR / "concept.md").read_text()
+    # Ground ideation in the multi-vertical playbook + hook data (vertical-agnostic; model picks the row).
+    from .refs import reference_block
+    t = (config.SCAFFOLDS_DIR / "concept.md").read_text() \
+        + reference_block(["smb_verticals.md", "ad_formats.md", "hooks.md"])
     return (t.replace("{{business}}", str(inv.get("business", "")))
              .replace("{{brief}}", str(inv.get("brief", "")))
              .replace("{{has_before_after}}", str(inv.get("has_before_after", False)))
@@ -117,17 +120,18 @@ def _load_scaffold(inv: dict) -> str:
              .replace("{{palette}}", ", ".join(inv.get("palette", [])) or "not detected"))
 
 
-def _stub_concept() -> str:
-    """Canned concept so offline/no-key runs complete (the real loop only runs with a key)."""
+def _stub_concept(inv: dict[str, Any] | None = None) -> str:
+    """Vertical-NEUTRAL canned concept so offline/no-key runs complete for ANY business."""
+    biz = (inv or {}).get("business", "this local business")
     return json.dumps({
-        "rejected": ["STUB: 'happy dogs playing montage' — the category cliché",
-                     "STUB: 'cute close-up + warm VO' — could be any daycare"],
+        "rejected": ["STUB: the generic category-montage cliché",
+                     "STUB: 'cute close-up + warm VO' — could be any business in the category"],
         "considered": [{"idea": "STUB idea", "risky_because": "...", "assets_used": ["@Image1"],
                         "gaps": [], "feasible": True}],
         "chosen": {
             "name": "STUB concept",
-            "concept": "STUB: one bold idea built around the real assets and the brief.",
-            "why_bold": "STUB: names and avoids the category cliché.",
+            "concept": f"STUB: one authentic, specific idea built around {biz}'s real assets and brief.",
+            "why_bold": "STUB: specific and real, not the category cliché.",
             "assets_used": ["@Image1"], "must_generate": [],
             "load_bearing_info": "price/hours/location/CTA still carried in the script.",
         },

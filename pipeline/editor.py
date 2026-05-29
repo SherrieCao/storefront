@@ -182,6 +182,10 @@ def _build_segments(agent: dict, by_n: dict, clips: dict, keyframes_map: dict,
     trimmed here; moodboard keyframe; card template). Carries `_max_s` (None = extensible)."""
     sources: dict[str, str] = {}
     out: list[dict[str, Any]] = []
+    # @Image refs already shown on screen (shot seeds + moodboard assets) — so a card bg doesn't repeat one
+    used_refs = {str(d.get("asset_ref", "")) for d in by_n.values()}
+    for d in by_n.values():
+        used_refs.update(str(x) for x in (d.get("moodboard_assets") or []))
     for i, ps in enumerate(agent.get("segments", [])):
         n = str(ps.get("n"))
         d = by_n.get(n)
@@ -206,25 +210,24 @@ def _build_segments(agent: dict, by_n: dict, clips: dict, keyframes_map: dict,
         elif t == "card":
             seg["card_template"] = d.get("card_template", "EndCard")
             seg["card_text"] = d.get("card_text", "")
-            bg = _card_bg(keyframes_map, inventory)        # photo-backed cards (kill the flat look)
+            bg = _card_bg(inventory, used_refs)             # photo-backed cards (kill the flat look)
             if bg:
                 seg["bg_src"] = _stage(sources, f"cardbg_{n}{Path(bg).suffix}", bg)
         out.append(seg)
     return out, sources
 
 
-def _card_bg(keyframes_map: dict, inventory: dict) -> str | None:
-    """A background image for cards: prefer a moodboard composition frame (the look the operator
-    liked), else the strongest enhanced real photo. None -> the card falls back to a palette gradient."""
-    for v in keyframes_map.values():
-        if v.get("mode") == "moodboard" and v.get("path") and Path(v["path"]).exists():
-            return v["path"]
-    for tok, _p in _usable_assets(inventory):
-        if tok.startswith("@Image"):
-            rp = resolve_ref(inventory, tok)
-            if rp and Path(rp).exists():
-                return rp
-    return None
+def _card_bg(inventory: dict, used_refs: set[str]) -> str | None:
+    """A real hero photo to back a card (rich, on-brand look). Prefer an @Image NOT already shown on
+    screen, so the card doesn't repeat a frame (e.g. the moodboard composition or a shot seed). Falls
+    back to any usable photo, else None (the card uses a palette gradient)."""
+    images = [(tok, resolve_ref(inventory, tok)) for tok, _ in _usable_assets(inventory)
+              if tok.startswith("@Image")]
+    images = [(tok, p) for tok, p in images if p and Path(p).exists()]
+    for tok, p in images:                # first an unused photo
+        if tok not in used_refs:
+            return p
+    return images[0][1] if images else None   # else any photo (better than a flat card)
 
 
 def _fit_to_total(run: Run, segs: list[dict], target: float) -> None:

@@ -115,12 +115,15 @@ def design_hook(business: str = "", format: str = "", angle: str = "",
         from google.genai import types
         from ..tracing import get_active_run, log_llm_call
         from ..llm import parse_json
+        from ..refs import reference_block
         model = config.MODEL_ROUTER.get("hook_designer", config.MODEL_ROUTER["creative_director"])
         client = genai.Client(api_key=config.GEMINI_API_KEY)
+        # ground the hook in the full Motion hook playbook, not just the inline summary
+        system = _HOOK_SYSTEM + reference_block(["hooks.md"])
         t0 = time.time()
         resp = client.models.generate_content(
             model=model, contents=[payload],
-            config=types.GenerateContentConfig(system_instruction=_HOOK_SYSTEM,
+            config=types.GenerateContentConfig(system_instruction=system,
                                                response_mime_type="application/json"))
         spec = parse_json(resp.text)
         run = get_active_run()             # set by run_agent_loop so this call is logged + costed
