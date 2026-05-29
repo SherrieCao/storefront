@@ -86,6 +86,14 @@ class Run:
         """Shots that failed MAX_SHOT_RETRIES — surfaced to the operator, never silently accepted."""
         self.flagged_shots_path.write_text(json.dumps(flagged, indent=2, default=str))
 
+    @property
+    def creative_flags_path(self) -> Path: return self.dir / "creative_flags.json"
+
+    def write_creative_flags(self, flags: list[dict[str, Any]]) -> None:
+        """Creative stages (concept/director/hook) whose reviewer wasn't satisfied after retries —
+        accepted-best but surfaced to the operator (parallel to flagged_shots)."""
+        self.creative_flags_path.write_text(json.dumps(flags, indent=2, default=str))
+
     def write_cost_md(self, status: str = "in progress") -> None:
         """Human-readable per-stage cost vs the $5 ceiling, so a $4.80 run is visible mid-flight."""
         total = self.cost_total()

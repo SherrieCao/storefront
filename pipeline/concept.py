@@ -16,12 +16,14 @@ from .llm import call_gemini_multimodal, parse_json
 from .translator import _usable_assets       # same @-token assignment the Director/Translator use
 from .director import _asset_summary          # identical asset rows (ref + file + quality)
 from .research import research_business       # real Google/Yelp reviews -> a true anchor detail
+from . import reviewers                       # 4-lens creative critic (self-correct loop)
 
 CONCEPT_FILE = "01_concept.json"
 RESEARCH_FILE = "01_research.json"
 
 
-def run_concept(run: Run, inventory: dict[str, Any], *, use_cache: bool = False) -> dict[str, Any]:
+def run_concept(run: Run, inventory: dict[str, Any], *, use_cache: bool = False,
+                feedback: str | None = None) -> dict[str, Any]:
     cache = run.dir / CONCEPT_FILE
     if use_cache and cache.exists():
         run.log("Concept: loaded from cache"); return json.loads(cache.read_text())
@@ -38,24 +40,42 @@ def run_concept(run: Run, inventory: dict[str, Any], *, use_cache: bool = False)
     video_paths = [p for tok, p in tokened if tok.startswith("@Video")]
     if inventory.get("logo_path"): image_paths.insert(0, inventory["logo_path"])
 
-    user_text = json.dumps({
+    base_payload = {
         "business": inventory["business"], "brief": inventory["brief"],
         "has_before_after": inventory["has_before_after"],
         "has_logo": inventory["has_logo"], "palette": inventory["palette"],
         "business_research": research,        # {found, detail, evidence, source, ...} or {found:false}
         "asset_summary": _asset_summary(inventory),
-    }, indent=2)
+    }
+    ctx = {"business": inventory["business"], "brief": inventory["brief"]}
 
-    if not config.GEMINI_API_KEY:                       # own stub — do NOT reuse the director-stub
-        raw, thinking = _stub_concept(inventory), "STUB thinking: no GEMINI_API_KEY set"
-    else:
+    def _produce(fb: str | None) -> tuple[dict[str, Any], str | None]:
+        payload = dict(base_payload)
+        if fb:
+            payload["prior_attempt_failed_review"] = {"fix_these": fb}  # baked into the regen
+        user_text = json.dumps(payload, indent=2)
+        if not config.GEMINI_API_KEY:                   # own stub — do NOT reuse the director-stub
+            return parse_json(_stub_concept(inventory)), "STUB thinking: no GEMINI_API_KEY set"
         t0 = time.time()
         raw, thinking, in_tok, out_tok = call_gemini_multimodal(
             model, scaffold, user_text, image_paths, video_paths)
         log_llm_call(run, "concept", model, scaffold[:400] + "...", raw, in_tok, out_tok,
                      int((time.time() - t0) * 1000), thinking)
+        return parse_json(raw), thinking
 
-    concept = parse_json(raw)
+    # self-correcting critic loop: produce -> review (4 lenses) -> regenerate with feedback
+    fb, concept, thinking, verdict = feedback, {}, None, {}
+    for attempt in range(1, config.MAX_CREATIVE_RETRIES + 1):
+        concept, thinking = _produce(fb)
+        verdict = reviewers.review(run, "concept", concept, ctx)
+        if verdict["pass"]:
+            break
+        fb = verdict["improvement"]
+        run.log(f"Concept: review attempt {attempt} FAIL ({verdict['failed_lenses']}) — regenerating")
+
+    concept["_review"] = {"passed": verdict.get("pass", True), "scores": verdict.get("scores", {}),
+                          "failed_lenses": verdict.get("failed_lenses", []),
+                          "improvement": verdict.get("improvement", "")}
     cache.write_text(json.dumps(concept, indent=2))
     _render_md(run, concept)
 

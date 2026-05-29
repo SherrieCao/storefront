@@ -116,22 +116,43 @@ def design_hook(business: str = "", format: str = "", angle: str = "",
         from ..tracing import get_active_run, log_llm_call
         from ..llm import parse_json
         from ..refs import reference_block
+        from .. import reviewers
         model = config.MODEL_ROUTER.get("hook_designer", config.MODEL_ROUTER["creative_director"])
         client = genai.Client(api_key=config.GEMINI_API_KEY)
         # ground the hook in the full Motion hook playbook, not just the inline summary
         system = _HOOK_SYSTEM + reference_block(["hooks.md"])
-        t0 = time.time()
-        resp = client.models.generate_content(
-            model=model, contents=[payload],
-            config=types.GenerateContentConfig(system_instruction=system,
-                                               response_mime_type="application/json"))
-        spec = parse_json(resp.text)
-        run = get_active_run()             # set by run_agent_loop so this call is logged + costed
-        if run is not None:
-            u = resp.usage_metadata
-            log_llm_call(run, "hook_designer", model, "[design_hook]", resp.text or "",
-                         (u.prompt_token_count or 0), (u.candidates_token_count or 0),
-                         int((time.time() - t0) * 1000), None)
+        run = get_active_run()             # set by run_agent_loop so calls are logged + costed
+        ctx = {"business": business, "brief": brief}
+
+        def _produce(fb):
+            p = json.loads(payload)
+            if fb:
+                p["prior_attempt_failed_review"] = {"fix_these": fb}
+            t0 = time.time()
+            resp = client.models.generate_content(
+                model=model, contents=[json.dumps(p, indent=2)],
+                config=types.GenerateContentConfig(system_instruction=system,
+                                                   response_mime_type="application/json"))
+            if run is not None:
+                u = resp.usage_metadata
+                log_llm_call(run, "hook_designer", model, "[design_hook]", resp.text or "",
+                             (u.prompt_token_count or 0), (u.candidates_token_count or 0),
+                             int((time.time() - t0) * 1000), None)
+            return parse_json(resp.text)
+
+        # self-correcting hook critic loop (skipped if no active run to review against)
+        fb, spec, verdict = None, {}, {}
+        for attempt in range(1, config.MAX_CREATIVE_RETRIES + 1):
+            spec = _produce(fb)
+            if run is None:
+                break
+            verdict = reviewers.review(run, "hook", spec, ctx)
+            if verdict.get("pass", True):
+                break
+            fb = verdict.get("improvement", "")
+            run.log(f"Hook: review attempt {attempt} FAIL ({verdict.get('failed_lenses')}) — regenerating")
+        spec["_review"] = {"passed": verdict.get("pass", True),
+                           "improvement": verdict.get("improvement", "")}
         return spec
     except Exception as e:
         return {"hook_line": "", "mechanic": "", "why": f"hook_designer error: {e}",

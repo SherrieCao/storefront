@@ -36,6 +36,8 @@ MODEL_ROUTER = {
     "shot_judge":        "gemini-3-flash-preview",
     # Review (mechanical) on the final assembled video.
     "review_judge":      "gemini-3.1-pro-preview",
+    # Creative reviewer (critic on concept/director/hook) — a DIFFERENT mind from the Gemini producers.
+    "reviewer":          "claude-sonnet-4-6",
     # Per-shot video generation: Seedance 2.0 image-to-video, single-shot, audio OFF (VERIFIED).
     "seedance_image":      "bytedance/seedance-2.0/image-to-video",
     "seedance_image_fast": "bytedance/seedance-2.0/fast/image-to-video",
@@ -97,6 +99,8 @@ MAX_VIDEO_CLIP_S  = 5.0              # max real_clip trim length (Remotion trims
 # Multi-gen shot policy + cost ceiling (D5, D6)
 # ---------------------------------------------------------------------------
 MAX_SHOT_RETRIES  = 3                # per seedance_shot: generate + judge, retry up to 3, then flag
+MAX_CREATIVE_RETRIES   = 2           # per creative stage: produce + review, self-correct up to N
+CREATIVE_MAX_ESCALATIONS = 1         # director-review fail -> re-roll the upstream concept this many times
 COST_CEILING_USD  = 5.00             # SILENT safety net (D6/D19): Director never sees cost
 COST_WARN_FRACTION = 0.8             # log a warning once cost crosses this fraction of the ceiling
 MAX_SHOT_CONCURRENCY = 4             # Seedance is ~2min/gen — fan shots out concurrently

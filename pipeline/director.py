@@ -20,13 +20,14 @@ from .llm import parse_json
 from .translator import _usable_assets
 from .agent.loop import run_agent_loop
 from .agent import tools as agent_tools
+from . import reviewers                       # 4-lens creative critic (self-correct loop)
 
 BRIEF_FILE = "02_creative_brief.json"
 SEGMENT_TYPES = {"seedance_shot", "real_clip", "moodboard", "card"}
 
 
 def run_director(run: Run, inventory: dict[str, Any], concept: dict[str, Any] | None = None,
-                 *, use_cache: bool = False, _retry: bool = False) -> dict[str, Any]:
+                 *, use_cache: bool = False) -> dict[str, Any]:
     cache = run.dir / BRIEF_FILE
     if use_cache and cache.exists():
         run.log("Director: loaded from cache"); return json.loads(cache.read_text())
@@ -40,29 +41,47 @@ def run_director(run: Run, inventory: dict[str, Any], concept: dict[str, Any] | 
     video_paths = [p for tok, p in tokened if tok.startswith("@Video")]
     if inventory.get("logo_path"): image_paths.insert(0, inventory["logo_path"])
 
-    user_text = json.dumps({
+    base_payload = {
         "business": inventory["business"], "brief": inventory["brief"],
         "has_before_after": inventory["has_before_after"],
         "has_logo": inventory["has_logo"], "palette": inventory["palette"],
         "chosen_concept": (concept or {}).get("chosen", {}),   # EXECUTE this (don't re-ideate)
         "asset_summary": _asset_summary(inventory),
         "duration_bounds_s": [config.MIN_DURATION_S, config.MAX_DURATION_S],
-    }, indent=2)
+    }
+    ctx = {"business": inventory["business"], "brief": inventory["brief"]}
 
-    agent_tools.set_assets(inventory)
-    raw, thinking, _itok, _otok = run_agent_loop(
-        run, "director", scaffold, model, ["inspect_asset", "trend_lookup", "design_hook"],
-        user_text=user_text, image_paths=image_paths, video_paths=video_paths,
-        max_iterations=6,
-        stub=lambda: (_stub_director(inventory), "STUB thinking: no GEMINI_API_KEY set", 0, 0))
+    def _produce(fb: str | None) -> tuple[dict[str, Any] | None, str | None]:
+        payload = dict(base_payload)
+        if fb:
+            payload["prior_attempt_failed_review"] = {"fix_these": fb}
+        agent_tools.set_assets(inventory)
+        raw, thinking, _i, _o = run_agent_loop(
+            run, "director", scaffold, model, ["inspect_asset", "trend_lookup", "design_hook"],
+            user_text=json.dumps(payload, indent=2), image_paths=image_paths, video_paths=video_paths,
+            max_iterations=6,
+            stub=lambda: (_stub_director(inventory), "STUB thinking: no GEMINI_API_KEY set", 0, 0))
+        return _validate(parse_json(raw)), thinking
 
-    brief = parse_json(raw)
-    brief = _validate(brief)
+    # self-correcting critic loop: produce -> review (4 lenses) -> regenerate with feedback
+    fb, brief, thinking, verdict = None, None, None, {}
+    for attempt in range(1, config.MAX_CREATIVE_RETRIES + 1):
+        brief, thinking = _produce(fb)
+        if brief is None:                       # invalid/empty brief — treat as a fail, regenerate
+            fb = "Output was not a valid brief. Return the required JSON with a non-empty segments[]."
+            run.log(f"Director: attempt {attempt} produced an invalid brief — regenerating")
+            continue
+        verdict = reviewers.review(run, "director", brief, ctx)
+        if verdict["pass"]:
+            break
+        fb = verdict["improvement"]
+        run.log(f"Director: review attempt {attempt} FAIL ({verdict['failed_lenses']}) — regenerating")
     if brief is None:
-        if not _retry:
-            run.log("Director: empty/invalid brief — retrying once")
-            return run_director(run, inventory, concept, use_cache=False, _retry=True)
-        raise RuntimeError("Director returned an empty/invalid brief after retry")
+        raise RuntimeError("Director returned an empty/invalid brief after retries")
+
+    brief["_review"] = {"passed": verdict.get("pass", True), "scores": verdict.get("scores", {}),
+                        "failed_lenses": verdict.get("failed_lenses", []),
+                        "improvement": verdict.get("improvement", "")}
     cache.write_text(json.dumps(brief, indent=2))
 
     segs = brief.get("segments", [])

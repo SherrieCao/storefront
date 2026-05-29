@@ -56,6 +56,16 @@ def main() -> int:
             run.log(f"[OPERATOR ACTION] {inventory['gap_ask']}")
         step = "concept";  concept = concept_.run_concept(run, inventory, use_cache=cached("concept"))
         step = "director"; brief = dir_.run_director(run, inventory, concept, use_cache=cached("director"))
+        # creative-reviewer escalation: a brief that fails its reviewer after self-retries re-rolls the
+        # upstream concept (with the director's feedback), then re-plans. Bounded; fresh runs only.
+        esc = 0
+        while (not brief.get("_review", {}).get("passed", True) and esc < config.CREATIVE_MAX_ESCALATIONS
+               and not cached("concept") and not cached("director")):
+            esc += 1
+            run.log(f"[ESCALATION {esc}] director review unresolved — re-rolling concept with feedback")
+            concept = concept_.run_concept(run, inventory, feedback=brief["_review"].get("improvement"))
+            brief = dir_.run_director(run, inventory, concept)
+        _collect_creative_flags(run, concept, brief)
         if not a.no_gate and not cached("director"):
             return _approval_gate(run)
         step = "enhance";   enh.enhance_assets(run, inventory, use_cache=cached("enhance"))
@@ -128,6 +138,25 @@ def _approval_gate(run) -> int:
     print(f"\nApprove & render:  python run.py --replay {run.run_id} --from-step enhance")
     print(f"Re-roll direction: python run.py --replay {run.run_id} --from-step concept")
     return 0
+
+
+def _collect_creative_flags(run, concept, brief) -> None:
+    """Gather any creative-stage reviews still unresolved after retries -> creative_flags.json + a
+    surfaced operator note (parallel to flagged_shots; never blocks)."""
+    flags = []
+    for stage, art in (("concept", concept), ("director", brief)):
+        rv = (art or {}).get("_review", {})
+        if rv and not rv.get("passed", True):
+            flags.append({"stage": stage, "failed_lenses": rv.get("failed_lenses", []),
+                          "improvement": rv.get("improvement", "")})
+    hook = (brief or {}).get("hook", {})
+    hrv = hook.get("_review", {}) if isinstance(hook, dict) else {}
+    if hrv and not hrv.get("passed", True):
+        flags.append({"stage": "hook", "improvement": hrv.get("improvement", "")})
+    if flags:
+        run.write_creative_flags(flags)
+        run.log(f"[OPERATOR ACTION] {len(flags)} creative review(s) unresolved after retries "
+                f"({', '.join(f['stage'] for f in flags)}) — see creative_flags.json")
 
 
 def _meta(d: Path, k: str):
