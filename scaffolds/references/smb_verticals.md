@@ -71,8 +71,11 @@ Florist:
   ("our chef makes the dough every morning at 5am") outperforms generic slickness.
 - Stock-feeling content: even AI-generated content can feel authentic if it's specific.
   A generic "happy family eating food" shot kills trust. A specific dish with real texture wins.
-- Overcrowding the script: 15 seconds, ~40 words. Pick ONE main point. Say it clearly.
+- Overcrowding the script: 15 seconds, ~30 words. Pick ONE main point. Say it clearly.
   The biggest mistake is trying to say everything.
+- Slow / "radio-spot" pacing: deliberate, mid-tempo cutting reads as a local TV ad, not social.
+  Fast, brisk cutting + a tight script is the SOCIAL-NATIVE DEFAULT; measured pacing is the
+  exception (genuine BTS/testimonial/slow-reveal only). When in doubt, cut faster and say less.
 
 ---
 

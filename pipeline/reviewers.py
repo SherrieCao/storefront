@@ -37,7 +37,7 @@ def review(run: Run, stage: str, artifact: dict[str, Any], context: dict[str, An
                 .replace("{{stage_desc}}", _STAGE_DESC.get(stage, stage))
                 .replace("{{business}}", str(context.get("business", "")))
                 .replace("{{brief}}", str(context.get("brief", "")))
-                + reference_block(["smb_verticals.md", "hooks.md", "ad_formats.md"]))
+                + reference_block(["smb_verticals.md", "hooks.md", "ad_formats.md", "script_craft.md"]))
     user = json.dumps({"stage": stage, "artifact": artifact}, indent=2, default=str)
 
     raw, thinking, in_tok, out_tok = call_claude(config.MODEL_ROUTER["reviewer"], scaffold, user)

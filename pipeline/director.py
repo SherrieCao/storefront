@@ -147,7 +147,7 @@ def _load_scaffold(inv: dict) -> str:
     # Director reasons WITH Motion's data — vertical-agnostic; the model picks the row for this brief.
     from .refs import reference_block
     t = (config.SCAFFOLDS_DIR / "creative_director.md").read_text() \
-        + reference_block(["ad_formats.md", "smb_verticals.md", "hooks.md"])
+        + reference_block(["ad_formats.md", "smb_verticals.md", "hooks.md", "script_craft.md"])
     return (t.replace("{{business}}", str(inv.get("business", "")))
              .replace("{{brief}}", str(inv.get("brief", "")))
              .replace("{{has_before_after}}", str(inv.get("has_before_after", False)))

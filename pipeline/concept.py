@@ -134,7 +134,7 @@ def _load_scaffold(inv: dict) -> str:
     # Ground ideation in the multi-vertical playbook + hook data (vertical-agnostic; model picks the row).
     from .refs import reference_block
     t = (config.SCAFFOLDS_DIR / "concept.md").read_text() \
-        + reference_block(["smb_verticals.md", "ad_formats.md", "hooks.md"])
+        + reference_block(["smb_verticals.md", "ad_formats.md", "hooks.md", "script_craft.md"])
     return (t.replace("{{business}}", str(inv.get("business", "")))
              .replace("{{brief}}", str(inv.get("brief", "")))
              .replace("{{has_before_after}}", str(inv.get("has_before_after", False)))

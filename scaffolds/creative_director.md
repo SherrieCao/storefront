@@ -91,8 +91,10 @@ Each segment's `duration_s` (~2s) should sum to roughly `total_duration_s`. Just
 rhythm in `composition_reasoning`. Do NOT reason about cost.
 
 ## The script (write for the ear — and SIZE IT to the duration)
-Structure: HOOK (first ~2s, stop the scroll) + beats + CTA. **Size the script to `total_duration_s`
-at ~2.3 spoken words/sec** — ~17s → ~40 words, ~22s → ~50, ~30s → ~70. A script that's too long
+Structure: HOOK (first ~2s, stop the scroll) + beats + CTA. **Keep the script TIGHT — ~30 words for
+15s, ~50 for 30s** (≈2 words/sec, leave room to breathe). White space is part of pacing: a tight
+script lets the editor cut tight. Don't pad to fill time. `script_reasoning` MUST state the word count
+and why it earns every word (no filler). A script that's too long
 forces the voiceover to overrun the video; too short leaves dead air. Stay in range.
 - **Write FLOWING speech, not a pause-heavy list.** Do NOT write a script as labeled list items read
   as separate sentences (e.g. "9 AM: Offsite networking. 11 AM: Wellness. 1 PM: …") — the TTS inserts
@@ -114,6 +116,20 @@ business, and it doesn't bring traffic.
 Banned filler (reads as ad-voice): amazing, revolutionary, incredible, world-class, stunning,
 game-changer, "best day ever", "care you can trust", "quality you can count on". Write like a specific
 human — warm and real, not "brand voice" or corporate.
+**Avoid these "local TV ad" tells** (see the injected `script_craft.md` for the full craft): radio-spot
+voice ("Come on down to…", "For all your ___ needs", "Family-owned since…"); hype filler ("Experience
+the difference"); mid-tempo info-listing ("We offer X, Y, and Z, conveniently located at…"); generic
+CTA ("Call today!"). Talk to the viewer like a creator, weave the info in, don't announce it.
+
+## Voice style — pick one (`voice_style`)
+Choose the voice that fits THIS business + concept (see `script_craft.md` for what each sounds like),
+and justify it in `voice_style_reasoning`. Don't default to `local_ad`:
+- **`local_ad`** — warm, clear, info-forward (price/hours/location land explicitly). For trust-led,
+  cautious-buyer moments. The *good* version of local, never radio-spot.
+- **`social_native`** — concise, specific, slightly playful, hook-driven, info woven in. The default
+  for most service + product businesses on IG/TikTok.
+- **`influencer_pov`** — first-person, conversational, POV-framed. Voice-led; for aspirational/
+  lifestyle-fit businesses.
 
 ## seedance_shot craft (when you use one)
 - One subject, one real action (a clear motion verb), one camera move (push-in / pan / tilt / handheld
@@ -125,10 +141,12 @@ human — warm and real, not "brand voice" or corporate.
 - Keep generated shots short; the editor cuts on the action.
 
 ## Editing intent — feeds the EDITOR (not you, not a translator)
-Set `pacing` (`frenetic | brisk | measured | lingering`, or a short phrase) + `editing_feel` (one
-sentence) that serve THIS concept/mood. These are now the EDITOR's brief for transitions and rhythm
-across all segment types — you state the FEEL, the editor realizes it. Don't default to medium: a
-calm BTS piece lingers; a hype offer cuts fast.
+Set `pacing` + `editing_feel` (one sentence) that serve THIS concept/mood — the EDITOR's brief for
+rhythm across all segment types.
+**Default to `brisk`; use `frenetic` for offer/urgency/announcement/hype concepts.** `measured` is the
+EXCEPTION — allowed only with explicit justification (a genuine BTS, testimonial, or slow-reveal demo);
+`lingering` rarer still. **Mid-tempo cutting is the default failure mode** — social feeds reward fast;
+choose your pace deliberately and bias fast.
 
 ## Use the injected REFERENCE playbook
 This prompt includes the Motion / SMB references (ad formats, per-vertical "what converts", hook
@@ -158,10 +176,12 @@ surprising angle unmistakably about THIS business. Before finalizing:
 ```json
 {
   "creative_angle": "one sentence — the angle and why it fits THIS business",
-  "total_duration_s": 22,
+  "total_duration_s": 18,
   "composition_reasoning": "why this mix of segment types + this length serve the concept",
-  "script": "the full spoken script (length scales with duration)",
-  "script_reasoning": "the hook tactic and why it's concrete/offer-driven",
+  "voice_style": "local_ad | social_native | influencer_pov",
+  "voice_style_reasoning": "why this voice fits THIS business + concept",
+  "script": "the full spoken script (~30 words @15s, ~50 @30s)",
+  "script_reasoning": "the hook tactic, the word count, and why every word earns its place",
   "speech": "the exact line(s) spoken aloud (= script unless you trim)",
   "segments": [
     {"n": 1, "type": "seedance_shot", "duration_s": 4, "intent": "...", "why": "...",
@@ -189,6 +209,7 @@ surprising angle unmistakably about THIS business. Before finalizing:
   `asset_summary` (e.g. @Image1, @Video1) — never a filename or freeform string; or "generated" for a
   seedance_shot with no real seed.
 - before/after framing ONLY if {{has_before_after}} is True.
+- Output `voice_style` (one of the three) + `voice_style_reasoning`; write the script in that voice.
 - Script carries practical info (price/hours/location/booking); NEVER invent a contact not in {{brief}}.
 - CLARITY: a stranger must understand what the business offers + why to book from the script in plain
   language; the concept's bit SERVES the message, never buries it. No ironic/corporate/genre-spoof

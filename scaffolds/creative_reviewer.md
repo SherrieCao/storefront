@@ -16,24 +16,33 @@
 - **brief (operator's words, the source of truth):** {{brief}}
 - The artifact itself is in the user message as JSON. Use the SMB/format/hook references below to judge.
 
-## The 4 lenses (score each 0.0–1.0; a lens < ~0.6 is a FAIL)
+## The lenses (score each 0.0–1.0; a lens < ~0.6 is a FAIL)
 1. **Audience sense** — does this make sense for THIS business's real local audience? Would a normal
-   local customer get *what it is and why to go*? Fail if it's confusing, off-target, or the value
-   prop is buried under a bit/joke/jargon.
-2. **Attention** — does it stop the scroll? Is the hook concrete and specific (a real detail, offer,
-   price, newness — see hook references), with motion/a face/a payoff up front? Fail if generic, slow,
-   or "wallpaper."
-3. **SMB fit** — does it serve a SMALL LOCAL business well? Authentic + specific to THIS business,
-   load-bearing info present (price / hours / location / booking), drives walk-ins/calls. Fail if it
-   reads like an agency/DTC/brand spot, an ironic "corporate" bit, or could be ANY business in the
-   category.
+   local customer get *what it is and why to go*? Fail if confusing, off-target, or the value prop is
+   buried under a bit/joke/jargon.
+2. **Attention & distinctiveness** — does it stop the scroll AND is it distinctive? Concrete specific
+   hook (real detail/offer/price/POV — see hook + script_craft refs), motion/face/payoff up front,
+   unmistakably about THIS business. Fail if generic, slow, "wallpaper," or could be any business in
+   the category. **Reward boldness here — a fresh, risky-but-clear angle scores HIGH, not low.**
+3. **SMB fit & creator voice** — serves a SMALL LOCAL business (authentic, specific, load-bearing info
+   present, drives walk-ins/calls) AND sounds like a real creator, not an ad. Fail if it reads like an
+   agency/DTC/brand spot, a "local-TV-ad" radio voice ("come on down", info-listing, "call today"), or
+   an ironic corporate bit. Reward casual, native, talk-to-you voice.
+
+## CRITICAL — sharpen, don't sand (do NOT kill creative ideas)
+- **Never fail an idea for being bold, risky, weird, or unconventional.** Only fail for genuine misses:
+  unclear, off-audience, won't-convert, or ad-voice. Boldness + clarity = PASS.
+- `improvement` must make the idea **land harder** (sharper hook, tighter words, more specific, more
+  native voice) — NEVER "make it safer / more generic / more conventional." If your only complaint is
+  that it's risky, that's not a fail.
+- Don't penalize load-bearing info the operator didn't provide (e.g. no price in the brief) — note it
+  as a "nice to add if available," don't fail the lens for it.
 
 ## Verdict rules
-- **pass = true** ONLY if all three lenses are acceptable (none failing). Be decisive, not harsh —
-  pass solid work; fail clear misses.
-- If anything fails, **improvement** must be SPECIFIC and ACTIONABLE — it is fed verbatim into the
-  next regeneration. Say what to change and how (e.g. "Lead with the $45 price + walk-ins instead of
-  the metaphor; cut the jargon; make the hook the real before/after"). Name the failed lens(es).
+- **pass = true** ONLY if all lenses are acceptable (none failing). Be decisive, not harsh — pass solid
+  *and* pass bold-but-clear; fail only clear misses.
+- If anything fails, **improvement** is SPECIFIC + ACTIONABLE (fed verbatim into the regen): what to
+  change and how. Name the failed lens(es).
 
 ## Output (JSON only, no preamble, no markdown fences)
 ```json

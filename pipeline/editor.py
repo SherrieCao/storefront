@@ -72,6 +72,9 @@ def render(run: Run, timeline: dict[str, Any], voice: dict[str, Any], *, use_cac
     vpath = voice.get("audio_path")
     if vpath and Path(vpath).exists():
         voice_dur = (voice.get("duration_ms") or 0) / 1000 or video_len
+        if voice_dur and voice_dur < 0.6 * video_len:
+            run.log(f"[PACING WARNING] voice {voice_dur:.1f}s < 60% of the {video_len:.1f}s timeline — "
+                    f"script likely too short for total_duration_s; Director should pick a shorter total.")
         tempo = 1.0
         if voice_dur > video_len + 0.1:
             tempo = min(round(voice_dur / video_len, 3), config.VOICE_MAX_ATEMPO)
