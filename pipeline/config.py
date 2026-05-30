@@ -16,6 +16,7 @@ RUNS_DIR        = REPO_ROOT / "runs"
 INPUTS_DIR      = REPO_ROOT / "inputs"
 SCAFFOLDS_DIR   = REPO_ROOT / "scaffolds"
 EDITOR_RENDER_DIR = REPO_ROOT / "editor_render"
+MUSIC_LIBRARY_DIR = REPO_ROOT / "assets" / "music_library"   # curated royalty-free beds + manifest.json
 
 # ---------------------------------------------------------------------------
 # Model router — change a model by editing one line.
@@ -49,8 +50,9 @@ MODEL_ROUTER = {
     # Voice: ElevenLabs eleven-v3 on fal — returns word/char timestamps, paces naturally
     # (VERIFIED, docs/voice_findings.md; supersedes MiniMax which gave no timestamps + padded pauses).
     "tts":               "fal-ai/elevenlabs/tts/eleven-v3",
-    # Music: CassetteAI on fal — instrumental-only mood-prompted bed; fast (~7s), VERIFIED (docs/
-    # music_findings.md). Replaced beatoven/music-generation, which submitted but hung in Queued forever.
+    # Music: runtime PICKS from a curated royalty-free library (assets/music_library/) — no per-run
+    # generation (D26). This id is used ONLY by the one-time library seeder (spikes/seed_music_library.py)
+    # + as a documented fallback. CassetteAI instrumental-only, ~7s (docs/music_findings.md).
     "music":             "cassetteai/music-generator",
     # Enhancement (targeted salvage of weak real assets).
     "enhance_upscale":   "fal-ai/clarity-upscaler",
@@ -79,7 +81,7 @@ SEEDANCE_RATE = {
 }
 NANO_BANANA_COST_PER_IMAGE = 0.08    # @1K (docs/nano_banana_findings.md); 2K=1.5x, 4K=2x
 TTS_COST_PER_1K_CHARS      = 0.10    # MiniMax speech-02-hd (docs/voice_findings.md)
-MUSIC_COST                 = 0.02    # CassetteAI music-generator ($0.02/min; ≤$0.01 for a 15-30s bed)
+MUSIC_COST                 = 0.0     # runtime picks from the committed library — no API cost (D26)
 FAL_ENHANCE_COST           = 0.03    # per remediated photo (clarity-upscaler)
 REMOTION_RENDER_COST       = 0.0     # local CLI render — no API cost (compute only)
 
@@ -110,8 +112,9 @@ COST_WARN_FRACTION = 0.8             # log a warning once cost crosses this frac
 MAX_SHOT_CONCURRENCY = 4             # Seedance is ~2min/gen — fan shots out concurrently
 
 # Editor pacing + voice-fit (social-native fast cutting)
-EDITOR_MAX_EXTENSIBLE_S = 4.0        # max hold for a single card/moodboard beat (was 6)
-EDITOR_TARGET_BEAT_S    = 2.0        # target hold per beat — punchy social cadence
+EDITOR_MAX_EXTENSIBLE_S = 3.0        # max hold for a single card/moodboard beat (4.0->3.0, E2 faster cuts)
+EDITOR_TARGET_BEAT_S    = 1.5        # target hold per beat (2.0->1.5, E2) — punchy social cadence
+PACING_MAX_AVG_BEAT_S   = 2.2        # Director pacing guard: avg beat above this = too slow -> regen (E2)
 VIDEO_PLAYBACK_RATE     = 1.25       # speed-ramp seedance/real clips for snap (Remotion playbackRate)
 VOICE_MAX_ATEMPO        = 1.55       # max pitch-preserving voice speed-up the editor applies (ffmpeg atempo)
 
@@ -132,7 +135,7 @@ MAX_REGEN_RETRIES = 2
 # ---------------------------------------------------------------------------
 SCAFFOLD_VERSIONS = {
     "concept":           "concept-v0.1",
-    "creative_director": "director-v1.0",   # mixed-segment output
+    "creative_director": "director-v1.1",   # mixed-segment output; E2 pace guard + E4 one-idea body
     "prompt_translator": "shot-prompt-v1.0", # per-shot composer
     "shot_agent":        "shot-agent-v0.1",
     "editor":            "editor-v0.1",

@@ -11,6 +11,7 @@ node_modules/
 editor_render/out/
 # per-run staged render assets + props (the spike fixtures clip1/moodboard1/voiceover stay)
 editor_render/public/[0-9]*/
+editor_render/public/_[a-z]*/
 editor_render/public/_props_*.json
 
 # run outputs

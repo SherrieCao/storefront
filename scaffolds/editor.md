@@ -20,7 +20,7 @@
 
 ## Your job
 1. **Pace FAST to `target_duration_s`.** Keep order unless a small reorder clearly helps. **Video beats
-   ~1.3–2s, never > `max_s`**; cut on the action; held past ~2.5s reads slow. `card`/`moodboard` ≤~4s.
+   ~1.2–1.8s, never > `max_s`**; cut on the action; held past ~2s reads slow. `card`/`moodboard` ≤~3s.
    Vary the rhythm (a punchy run, then one held beat) — don't be metronomic. Cuts get snapped onto the
    music beat grid automatically, so steady beat-length cuts pay off.
 2. **Transitions** per segment `transition_in`:
@@ -50,7 +50,7 @@ Bold, fast rhythm + purposeful motion graphics score HIGH — don't play it safe
 must SERVE the beat; gratuitous effects that fight the footage score LOW.
 
 ## Hard rules
-- Video `duration_s` ≤ `max_s`; video beats ~1.3–2s; `card`/`moodboard` ≤~4s; durations sum ≈ `target_duration_s`.
+- Video `duration_s` ≤ `max_s`; video beats ~1.2–1.8s; `card`/`moodboard` ≤~3s; durations sum ≈ `target_duration_s`.
 - `transition_in` ∈ {hard_cut, crossfade, dip_to_black, slide, whip, zoom}; first segment `hard_cut`.
 - `motion` ∈ {punch_in, parallax} (video only, optional). `caption_style` ∈ {clean_pop, emphasis, karaoke}.
 - card `animation` ∈ {scale_pop, slide_in, fade}.

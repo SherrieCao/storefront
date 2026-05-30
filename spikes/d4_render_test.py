@@ -41,7 +41,7 @@ words = [{"w": w, "start_s": 0.4 + i * 0.42, "end_s": 0.4 + i * 0.42 + 0.4}
 plan = {"fps": 30, "width": 1080, "height": 1920, "segments": segs,
         "audio": {"src": "voiceover.mp3", "gain": 1.0},
         "music": {"src": "music.mp3", "gain": 0.18},
-        "captions": [], "words": words, "caption_style": "karaoke",
+        "captions": [], "words": words, "caption_style": "emphasis",
         "palette": ["#0b6e4f", "#f4c542", "#15324b"]}
 
 out = str(run.dir / "d4_test.mp4")

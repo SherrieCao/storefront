@@ -192,3 +192,28 @@ The original D plan used `beatoven/music-generation`. Its fal endpoint accepted 
 `Queued` forever** (worker never picked up the job — confirmed by polling `fal_client.status`). Swapped
 to `cassetteai/music-generator`: instrumental-only, ~7s latency, $0.02/min, output `{audio_file:{url}}`
 (WAV). One-line `MODEL_ROUTER["music"]` swap if Beatoven recovers. See docs/music_findings.md.
+
+## D26 (SHIPPED — Workstream E). Run-0008 operator polish: captions · pace · music library · writing
+Tuning pass from the first live run's operator review (run 0008, Carol's Dog Daycare).
+- **Music = a curated LIBRARY pick, not per-run generation.** Runtime picks a royalty-free instrumental
+  bed from `assets/music_library/` (manifest: `{file, energy, mood_tags, bpm, beats[], source,
+  license}`) matched to the Director's `pacing` (brisk/frenetic → **high** energy, so it never drags —
+  the "too slow" fix), rotating by run index. Free + instant (`MUSIC_COST=0`), reproducible. Seeded once
+  via `spikes/seed_music_library.py`; operators can drop in their own tracks (beats computed on the fly
+  if absent). The librosa beat grid, ducking, and `run_music` signature are unchanged; generation
+  survives as the seeder backend + a one-line fallback. (FreePD — the intended CC0 source — has shut
+  down; archive.org CC0 audio isn't ad-bed material; current seeds are up-tempo CassetteAI instrumentals,
+  royalty-free for commercial use.)
+- **Pace ≈20% faster via tighter cuts, not faster playback.** A deterministic **Director pacing guard**
+  (`_pacing_feedback`) inside the existing self-correct loop: if `avg_beat > PACING_MAX_AVG_BEAT_S`
+  (2.2s) and unused usable assets remain, it regenerates with "more, shorter beats" feedback (run 0008
+  shipped 6 beats over 18s ≈ 3s/beat — exactly this trap). Editor holds tightened: `EDITOR_MAX_EXTENSIBLE_S`
+  4→3, `EDITOR_TARGET_BEAT_S` 2→1.5; scaffolds name the slow-cadence anti-pattern. `VIDEO_PLAYBACK_RATE`
+  stays 1.25 (motion natural).
+- **Emphasis captions fixed.** `alignItems:baseline` + drop the current-word `scale(1.12)` (it shoved
+  neighbors and, with mixed emphasis sizes, read as misalignment) — emphasis now = size + accent color;
+  big-word threshold ≥6; word-timing rescale at 3 dp so the highlight tracks the spoken word.
+- **Writing: "commit to one idea."** Director scaffold (v1.1) + creative reviewer (v0.2) now attack the
+  feature-list body directly — the body must EXTEND the hook's POV, not pivot to a brochure; a list-y
+  body is a reviewer FAIL with a *sharpening* fix. Operator-supplied real transcripts slot into
+  `script_craft.md` (the highest-leverage lever) — already wired into Concept/Director/Reviewer.

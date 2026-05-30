@@ -28,8 +28,9 @@ export const KineticCaption: React.FC<{words: Word[]; style?: string; palette?: 
 
   return (
     <AbsoluteFill style={{justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 240}}>
-      <div style={{display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '12px 16px',
-                   maxWidth: '88%'}}>
+      {/* alignItems:baseline keeps mixed font sizes (emphasis) on one baseline — no vertical jump */}
+      <div style={{display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'baseline',
+                   gap: '12px 16px', maxWidth: '92%'}}>
         {active.map((word, i) => {
           const s = spring({frame: frame - word.start_s * fps, fps,
                             config: {damping: 12, stiffness: 200, mass: 0.5}});
@@ -47,9 +48,12 @@ export const KineticCaption: React.FC<{words: Word[]; style?: string; palette?: 
             );
           }
           const shown = t >= word.start_s - 0.12;
-          const big = style === 'emphasis' && word.w.replace(/[^A-Za-z0-9]/g, '').length >= 5;
+          const big = style === 'emphasis' && word.w.replace(/[^A-Za-z0-9]/g, '').length >= 6;
           const color = style === 'emphasis' && (big || isCurrent) ? accent : 'white';
-          const scale = shown ? interpolate(s, [0, 1], [0.6, isCurrent ? 1.12 : 1.0]) : 0.6;
+          // Reveal pop only (0.6 -> 1.0); NO persistent 1.12 on the current word — that breathing
+          // shoved neighbors around and, with mixed emphasis sizes, read as misalignment. Emphasis is
+          // now signalled by size + accent color, not by per-frame scaling.
+          const scale = shown ? interpolate(s, [0, 1], [0.6, 1.0]) : 0.6;
           return (
             <span key={i} style={{
               fontFamily: FONT, fontWeight: 800, color,

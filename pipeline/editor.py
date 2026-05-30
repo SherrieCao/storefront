@@ -108,10 +108,12 @@ def render(run: Run, timeline: dict[str, Any], voice: dict[str, Any], *,
         fitted = run.dir / VOICE_DIR_FIT
         if tempo > 1.0:
             _atempo(vpath, str(fitted), tempo)
-            captions = [{"text": c["text"], "start_s": round(c["start_s"] / tempo, 2),
-                         "end_s": round(c["end_s"] / tempo, 2)} for c in captions]
-            words = [{"w": w["w"], "start_s": round(w["start_s"] / tempo, 2),
-                      "end_s": round(w["end_s"] / tempo, 2)} for w in words]
+            # 3 dp: at 2 dp the rescaled per-word window can drift onto the wrong word (visible as the
+            # emphasis highlight landing off the spoken word).
+            captions = [{"text": c["text"], "start_s": round(c["start_s"] / tempo, 3),
+                         "end_s": round(c["end_s"] / tempo, 3)} for c in captions]
+            words = [{"w": w["w"], "start_s": round(w["start_s"] / tempo, 3),
+                      "end_s": round(w["end_s"] / tempo, 3)} for w in words]
             run.log(f"Editor: voice {voice_dur:.1f}s atempo×{tempo} -> {voice_dur/tempo:.1f}s "
                     f"(video {video_len:.1f}s)")
             vstaged = str(fitted)

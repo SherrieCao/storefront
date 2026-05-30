@@ -74,12 +74,17 @@ def run_director(run: Run, inventory: dict[str, Any], concept: dict[str, Any] | 
             run.log(f"Director: attempt {attempt} produced an invalid brief — regenerating")
             continue
         verdict = reviewers.review(run, "director", brief, ctx)
-        attempts.append({"attempt": attempt, "passed": verdict["pass"], "scores": verdict["scores"],
-                         "failed_lenses": verdict["failed_lenses"], "improvement": verdict["improvement"]})
-        if verdict["pass"]:
+        # Deterministic pacing guard (E2): too-slow avg beat + spare assets -> regenerate with MORE,
+        # SHORTER beats. Runs alongside the creative review; logs the metric every attempt.
+        pace_fb = _pacing_feedback(run, brief, inventory)
+        passed = verdict["pass"] and not pace_fb
+        lenses = list(verdict["failed_lenses"]) + (["pacing_too_slow"] if pace_fb else [])
+        attempts.append({"attempt": attempt, "passed": passed, "scores": verdict["scores"],
+                         "failed_lenses": lenses, "improvement": verdict["improvement"]})
+        if passed:
             break
-        fb = verdict["improvement"]
-        run.log(f"Director: review attempt {attempt} FAIL ({verdict['failed_lenses']}) — regenerating")
+        fb = "  ".join(p for p in (verdict["improvement"] if not verdict["pass"] else "", pace_fb or "") if p)
+        run.log(f"Director: attempt {attempt} regenerating ({lenses})")
     if brief is None:
         raise RuntimeError("Director returned an empty/invalid brief after retries")
 
@@ -116,6 +121,27 @@ def _validate(brief: dict[str, Any]) -> dict[str, Any] | None:
         dur = sum(float(s.get("duration_s") or 0) for s in segs) or config.MIN_DURATION_S
     brief["total_duration_s"] = max(config.MIN_DURATION_S, min(config.MAX_DURATION_S, float(dur)))
     return brief
+
+
+def _pacing_feedback(run: Run, brief: dict[str, Any], inventory: dict[str, Any]) -> str | None:
+    """E2 pace guard: if the brief's average beat is too slow AND there are still unused usable assets
+    (so more distinct beats are feasible), return regen feedback pushing more/shorter beats. Returns
+    None when pace is fine or no spare assets exist (can't honestly add beats). Logs the metric always."""
+    segs = brief.get("segments", [])
+    n = len(segs)
+    dur = float(brief.get("total_duration_s") or 0)
+    if n == 0 or dur <= 0:
+        return None
+    avg = dur / n
+    usable = len(_usable_assets(inventory))
+    run.log(f"Director: pacing check — {n} beats / {dur:.0f}s = {avg:.1f}s avg ({usable} usable assets)")
+    if avg <= config.PACING_MAX_AVG_BEAT_S or n >= usable:
+        return None
+    target_n = max(n + 2, int(dur / 1.8) + 1)
+    return (f"PACING TOO SLOW: {n} beats over {dur:.0f}s ≈ {avg:.1f}s/beat. Social ads cut faster — aim "
+            f"for ~{target_n}+ beats (~1.5–2s each). You have {usable} usable assets; turn more of them "
+            f"into distinct short beats (split long holds; add real_clip / moodboard beats). Add MORE, "
+            f"SHORTER segments — do NOT pad the existing ones.")
 
 
 def _type_counts(segs: list[dict]) -> dict[str, int]:

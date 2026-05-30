@@ -1,7 +1,33 @@
-# Music spike findings (Workstream D / Phase 2)
+# Music findings (Workstream D / Phase 2, revised in E3)
 
-Goal: a royalty-free, **instrumental-only**, mood-matched music bed at the ad's length, plus a **beat
-grid** so the editor can snap cuts onto the beat and duck the music under the voice.
+Goal: a royalty-free, **instrumental-only**, mood-matched music bed, plus a **beat grid** so the editor
+can snap cuts onto the beat and duck the music under the voice.
+
+## E3 decision — a curated LIBRARY, not per-run generation (current approach)
+Operator feedback on run 0008: the generated bed felt **too slow**, and we shouldn't pay to generate a
+bed every run. So runtime now **picks** from `assets/music_library/` (a small committed set of
+royalty-free instrumental beds) matched to the Director's `pacing` (brisk/frenetic → high energy, so it
+never drags). Free + instant at runtime; controllable tempo; reproducible.
+
+- **`assets/music_library/manifest.json`** — one entry per track: `{file, energy: high|mid|low,
+  mood_tags[], bpm, beats[], duration_s, source, license}`. Beats precomputed (librosa) at seed time, so
+  runtime needs no librosa unless an operator-added track lacks them.
+- **Seeded once** via `spikes/seed_music_library.py` (re-run only to add/refresh). Current seeds were
+  generated up-tempo on CassetteAI (FreePD — the intended CC0 source — has **shut down**, and
+  archive.org's CC0 audio is experimental, not ad-bed material). 30s, 192k MP3 (~0.7MB each):
+  `track_upbeat_pop` (high, 103 BPM), `track_punchy_electro` (high, 129 BPM), `track_warm_groove`
+  (mid, 136 BPM). License: royalty-free for commercial use, no attribution (fal/CassetteAI output).
+- **Operator can drop in their own tracks** (e.g. Pixabay / Chosic / YouTube Audio Library beds): add
+  the file + a manifest entry; if `beats` is omitted, `music.py` computes + uses them on the fly.
+- `pipeline/music.py` `run_music()` reads the manifest, picks by pacing→energy (rotating by run index),
+  copies the file into the run dir, returns `{music_path, bpm, beats}`. **`MUSIC_COST = 0.0`** at runtime.
+  Empty library → stub (no music, empty beats → editor unaffected). `MODEL_ROUTER["music"]` is now used
+  only by the seeder + as a documented fallback.
+
+---
+
+## (Original D spike) Generation path — kept as the seeder backend
+The per-run generation approach below is preserved because the seeder reuses it.
 
 ## Model: `cassetteai/music-generator` (fal) — VERIFIED ✅
 
