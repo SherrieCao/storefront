@@ -43,19 +43,21 @@ def run_voice(run: Run, brief: dict[str, Any], timeline: dict[str, Any],
     if not config.FAL_KEY:
         _silent_mp3(str(mp3), target_s)
         lines = _even_lines(text, target_s)
+        words = _even_words(text, target_s)
         run.log(f"Voice: STUB silent mp3 ({target_s:.1f}s, {len(lines)} lines)")
-        result = {"audio_path": str(mp3), "duration_ms": int(target_s * 1000), "lines": lines}
+        result = {"audio_path": str(mp3), "duration_ms": int(target_s * 1000),
+                  "lines": lines, "words": words}
         cache.write_text(json.dumps(result, indent=2)); return result
 
     # Generate ONE natural take. The editor time-stretches it (ffmpeg atempo, pitch-preserving) to fit
     # the fixed video length, so we don't fight ElevenLabs' 1.2 speed cap here.
-    lines, dur_s = _eleven_render(run, text, str(mp3), 1.0)
+    lines, words, dur_s = _eleven_render(run, text, str(mp3), 1.0)
     if dur_s > target_s * 1.6:
         run.log(f"Voice: {dur_s:.1f}s for a {target_s:.0f}s ad — editor atempo caps at "
                 f"{config.VOICE_MAX_ATEMPO}× (Director should shorten the script).")
 
     result = {"audio_path": str(mp3), "duration_ms": int(dur_s * 1000), "lines": lines,
-              "voice": _VOICE_ID, "timeline_total_s": target_s}
+              "words": words, "voice": _VOICE_ID, "timeline_total_s": target_s}
     cache.write_text(json.dumps(result, indent=2))
     run.reason("Voice", None,
                f"ElevenLabs natural take ({dur_s:.1f}s); the editor will atempo-fit it to the "
@@ -64,8 +66,8 @@ def run_voice(run: Run, brief: dict[str, Any], timeline: dict[str, Any],
     return result
 
 
-def _eleven_render(run: Run, text: str, dst: str, speed: float) -> tuple[list[dict], float]:
-    """One ElevenLabs call (timestamps on). Saves the mp3, returns (caption lines, duration_s)."""
+def _eleven_render(run: Run, text: str, dst: str, speed: float) -> tuple[list[dict], list[dict], float]:
+    """One ElevenLabs call (timestamps on). Saves the mp3, returns (caption lines, words, duration_s)."""
     budget.check_ceiling(run, budget.tts_call(len(text)), "voice")
     import fal_client
     res = fal_client.subscribe(config.MODEL_ROUTER["tts"], arguments={
@@ -76,9 +78,36 @@ def _eleven_render(run: Run, text: str, dst: str, speed: float) -> tuple[list[di
     url = audio.get("url") if isinstance(audio, dict) else audio
     urllib.request.urlretrieve(url, dst)
     run.trace({"step": "voice", "type": "fal_output", "speed": speed, "url": url})
-    lines = _lines_from_timestamps(res.get("timestamps") or [])
+    chunks = res.get("timestamps") or []
+    lines = _lines_from_timestamps(chunks)
+    words = _words_from_timestamps(chunks)
     dur_s = _duration(dst) or (lines[-1]["end_s"] if lines else 0.0)
-    return lines, dur_s
+    return lines, words, dur_s
+
+
+def _words_from_timestamps(chunks: list[dict]) -> list[dict[str, Any]]:
+    """Per-WORD timings (for kinetic captions) from the char-level timestamps: flatten chars, split on
+    whitespace, each word timed first-char-start → last-char-end."""
+    chars, starts, ends = [], [], []
+    for c in chunks:
+        chars += (c.get("characters") or [])
+        starts += (c.get("character_start_times_seconds") or [])
+        ends += (c.get("character_end_times_seconds") or [])
+    n = min(len(chars), len(starts), len(ends))
+    out, buf, first = [], "", None
+    for i in range(n):
+        ch = chars[i]
+        if ch.strip() == "":
+            if buf:
+                out.append({"w": buf, "start_s": round(starts[first], 2), "end_s": round(ends[i - 1], 2)})
+                buf, first = "", None
+            continue
+        if first is None:
+            first = i
+        buf += ch
+    if buf and first is not None:
+        out.append({"w": buf, "start_s": round(starts[first], 2), "end_s": round(ends[n - 1], 2)})
+    return out
 
 
 def _lines_from_timestamps(chunks: list[dict]) -> list[dict[str, Any]]:
@@ -129,6 +158,16 @@ def _even_lines(text: str, total_s: float) -> list[dict[str, Any]]:
     if out:
         out[-1]["end_s"] = round(total_s, 2)
     return out
+
+
+def _even_words(text: str, total_s: float) -> list[dict[str, Any]]:
+    """Offline stub: evenly distribute words across total_s (so kinetic captions still render)."""
+    ws = text.split()
+    if not ws:
+        return []
+    step = total_s / len(ws)
+    return [{"w": w, "start_s": round(i * step, 2), "end_s": round((i + 1) * step, 2)}
+            for i, w in enumerate(ws)]
 
 
 def _silent_mp3(dst: str, dur_s: float) -> None:

@@ -4,6 +4,7 @@ import {
 } from 'remotion';
 import {Caption, EditPlan, Segment} from './types';
 import {CARD_TEMPLATES} from './templates/Cards';
+import {KineticCaption} from './KineticCaption';
 
 const CROSSFADE_S = 0.4;
 
@@ -34,10 +35,10 @@ const MoodboardSegment: React.FC<{src: string; durationInFrames: number}> = ({sr
 };
 
 // Card segment -> the template library (templates/Cards.tsx). Photo-backed + palette accents.
-const CardSegment: React.FC<{template?: string; text?: string; bg?: string; palette?: string[]}> =
-  ({template, text, bg, palette}) => {
+const CardSegment: React.FC<{template?: string; text?: string; bg?: string; palette?: string[]; animation?: string}> =
+  ({template, text, bg, palette, animation}) => {
   const Card = CARD_TEMPLATES[template ?? 'EndCard'] ?? CARD_TEMPLATES.EndCard;
-  return <Card text={text} bg={bg} palette={palette} />;
+  return <Card text={text} bg={bg} palette={palette} animation={animation} />;
 };
 
 const renderSegment = (seg: Segment, durationInFrames: number, palette?: string[]) => {
@@ -48,7 +49,8 @@ const renderSegment = (seg: Segment, durationInFrames: number, palette?: string[
     case 'moodboard':
       return <MoodboardSegment src={seg.src!} durationInFrames={durationInFrames} />;
     case 'card':
-      return <CardSegment template={seg.card_template} text={seg.card_text} bg={seg.bg_src} palette={palette} />;
+      return <CardSegment template={seg.card_template} text={seg.card_text} bg={seg.bg_src}
+                          palette={palette} animation={seg.card_animation} />;
   }
 };
 
@@ -97,7 +99,9 @@ export const AdComposition: React.FC<{plan: EditPlan}> = ({plan}) => {
           </FadeWrap>
         </Sequence>
       ))}
-      {plan.captions && plan.captions.length > 0 && <CaptionTrack captions={plan.captions} />}
+      {plan.words && plan.words.length > 0
+        ? <KineticCaption words={plan.words} style={plan.caption_style} palette={plan.palette} />
+        : (plan.captions && plan.captions.length > 0 ? <CaptionTrack captions={plan.captions} /> : null)}
       {plan.audio && <Audio src={staticFile(plan.audio.src)} volume={plan.audio.gain ?? 1} />}
     </AbsoluteFill>
   );

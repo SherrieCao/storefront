@@ -10,11 +10,13 @@ export type Segment = {
   playback_rate?: number; // speed-ramp for seedance_shot / real_clip (energy)
   card_template?: string; // EndCard | PriceTag | LocationPin | OfferBanner | Title
   card_text?: string;
+  card_animation?: string; // scale_pop | slide_in | fade
   bg_src?: string; // staticFile name for a card's photo background
   transition_in?: Transition;
 };
 
 export type Caption = {text: string; start_s: number; end_s: number};
+export type Word = {w: string; start_s: number; end_s: number};
 
 export type EditPlan = {
   fps: number;
@@ -23,6 +25,8 @@ export type EditPlan = {
   segments: Segment[];
   audio?: {src: string; gain?: number} | null;
   captions?: Caption[];
+  words?: Word[]; // word-level timings for kinetic captions
+  caption_style?: string; // clean_pop | emphasis
   palette?: string[]; // brand palette hex colors (card accents)
 };
 

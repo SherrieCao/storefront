@@ -17,8 +17,13 @@ triage → concept → director → enhance → keyframes → shots → voice �
   (silent) → Gemini Flash judges the clip → approve or retry ≤3 with judge feedback → flag after 3.
   Runs shots concurrently (Seedance is ~2 min/gen).
 - **voice** — one MiniMax TTS call (fal). Clean voiceover + locally-derived per-line caption timing.
-- **editor** — Editor Agent emits an EDIT PLAN (order / durations to voice / transitions / captions);
-  Remotion (`editor_render/`) renders the plan → final mp4. Assembles all four segment types.
+- **editor** — Editor Agent emits an EDIT PLAN (order / durations / transitions / caption style / card
+  animation), **critiqued by an editing reviewer loop** (`plan_timeline⟳`: first-0.5s grab / rhythm /
+  contrast / payoff); Remotion (`editor_render/`) renders the plan → final mp4. Assembles all four
+  segment types with **kinetic word-by-word captions** + **animated cards**. **Deferred to Phase 2
+  (built only when the current polish proves insufficient):** music bed + beat-synced cuts (Beatoven +
+  librosa), lower-thirds / stickers / broader motion graphics, multi-style kinetic typography. See
+  DECISIONS D24/D25.
 - **review** — mechanical checks only on the FINAL video (playable, duration, not black). Per-shot
   quality already judged in `shots`; creative judgment is the operator's (06_operator_review.json).
 

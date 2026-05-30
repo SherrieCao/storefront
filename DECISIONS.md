@@ -156,3 +156,27 @@ Seedance generates new video footage ONLY (the `seedance_shot` type). Remotion h
 else — moodboard composition + motion, real-clip trimming, card rendering, transitions, captions,
 audio mux. If a task could plausibly be either, choose Remotion. This one clean split is the
 architectural-simplicity lever: no fuzzy middle, no per-task decision.
+
+## D22. Pacing defaults to brisk/frenetic; mid-pacing is the exception
+Script word cap tightened to ~30 words for 15s, ~50 for 30s — white space is part of pacing; a tight
+script lets the editor cut tight. The Director's `pacing` defaults to `brisk` (most) / `frenetic`
+(offer/urgency/announcement); `measured` is allowed only with explicit justification. Mid-tempo
+cutting is the named default failure. (Length floor stays 15s, D19.)
+
+## D23. Director picks a `voice_style` (local_ad / social_native / influencer_pov)
+One default voice fits no business well. The Director chooses a voice style + justifies it; the
+researched `scaffolds/references/script_craft.md` (injected into Concept + Director + reviewers)
+teaches what each sounds like, plus creator-native craft and the "local-TV-ad" anti-patterns to avoid.
+The creative reviewer rewards bold/specific/native voice and never sands ideas for safety.
+
+## D24. The editor has a critic loop + selective Phase-2 capabilities
+The critic-loop pattern (concept/director/hook) extends to the editor: `editor.plan_timeline⟳` —
+plan → editing reviewer (first-0.5s grab / rhythm / contrast / payoff) → regenerate → accept-best.
+The Remotion toolkit expanded just enough that the reviewer has tools to demand: kinetic word-by-word
+captions (clean_pop / emphasis) replacing static caption blocks, and animated cards (scale_pop /
+slide_in / fade). Beat-sync, music bed, and broader motion graphics are deferred (D25, when needed).
+
+## D25 (deferred — Phase 2). Music bed + beat-sync + heavier motion-graphics
+Music (Beatoven on fal, royalty-free) + beat detection (librosa) → beat-synced cuts/captions + ducked
+music; lower-thirds / stickers / more transitions / animated b-roll. Grounded but NOT built — gated
+on the A–C polish (D22–D24) proving out first. See the plan / docs/ARCHITECTURE.md.

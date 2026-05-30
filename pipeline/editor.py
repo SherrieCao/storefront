@@ -21,6 +21,7 @@ from . import config
 from .tracing import Run, log_llm_call
 from .llm import call_claude, parse_json
 from .translator import resolve_ref, _usable_assets
+from . import reviewers                       # edit-plan critic loop
 
 EDIT_PLAN_FILE = "07_edit_plan.json"
 OUTPUT_FILE = "09_output/final.mp4"
@@ -43,14 +44,30 @@ def plan_timeline(run: Run, brief: dict[str, Any], shots_result: dict[str, Any],
     run.log(f"Editor: planning timeline for {len(usable)} segments to {target:.0f}s")
 
     limits = _video_limits(usable, clips, inventory)        # {n: max display s} for video segments
-    agent = _editor_agent(run, usable, brief, limits)       # LLM: order + durations + transitions
+    ctx = {"business": inventory.get("business", ""), "brief": inventory.get("brief", "")}
+
+    # self-correcting editor critic loop: plan -> review (editing craft) -> regenerate with feedback
+    fb, agent, verdict, attempts = None, {}, {}, []
+    for attempt in range(1, config.MAX_CREATIVE_RETRIES + 1):
+        agent = _editor_agent(run, usable, brief, limits, feedback=fb)
+        verdict = reviewers.review(run, "edit", agent, ctx)
+        attempts.append({"attempt": attempt, "passed": verdict["pass"], "scores": verdict["scores"],
+                         "failed_lenses": verdict["failed_lenses"], "improvement": verdict["improvement"]})
+        if verdict["pass"]:
+            break
+        fb = verdict["improvement"]
+        run.log(f"Editor: edit-review attempt {attempt} FAIL ({verdict['failed_lenses']}) — replanning")
+
     segs, sources = _build_segments(agent, by_n, clips, keyframes_map, inventory, limits)
     _fit_to_total(run, segs, target)                        # clamp + reconcile durations to target
     total_s = _assign_timestamps(segs)                      # cumulative start/end (crossfade-aware)
 
     timeline = {"fps": config.FPS, "width": 1080, "height": 1920,
                 "segments": segs, "sources": sources, "total_s": round(total_s, 2),
-                "palette": inventory.get("palette", []), "reasoning": agent.get("reasoning", "")}
+                "palette": inventory.get("palette", []), "reasoning": agent.get("reasoning", ""),
+                "caption_style": agent.get("caption_style", "clean_pop"),
+                "_review": {"passed": verdict.get("pass", True), "scores": verdict.get("scores", {}),
+                            "failed_lenses": verdict.get("failed_lenses", []), "attempts": attempts}}
     run.log(f"Editor: timeline {total_s:.1f}s — "
             + ", ".join(f"{s['type']}:{s['duration_s']:.1f}s" for s in segs))
     return timeline
@@ -69,6 +86,7 @@ def render(run: Run, timeline: dict[str, Any], voice: dict[str, Any], *, use_cac
     # Fit the voice to the video by time-stretching it (pitch-preserving), NOT by stretching the video.
     audio, captions = None, [dict(text=l["text"], start_s=l["start_s"], end_s=l["end_s"])
                              for l in voice.get("lines", [])]
+    words = [dict(w=w["w"], start_s=w["start_s"], end_s=w["end_s"]) for w in voice.get("words", [])]
     vpath = voice.get("audio_path")
     if vpath and Path(vpath).exists():
         voice_dur = (voice.get("duration_ms") or 0) / 1000 or video_len
@@ -83,6 +101,8 @@ def render(run: Run, timeline: dict[str, Any], voice: dict[str, Any], *, use_cac
             _atempo(vpath, str(fitted), tempo)
             captions = [{"text": c["text"], "start_s": round(c["start_s"] / tempo, 2),
                          "end_s": round(c["end_s"] / tempo, 2)} for c in captions]
+            words = [{"w": w["w"], "start_s": round(w["start_s"] / tempo, 2),
+                      "end_s": round(w["end_s"] / tempo, 2)} for w in words]
             run.log(f"Editor: voice {voice_dur:.1f}s atempo×{tempo} -> {voice_dur/tempo:.1f}s "
                     f"(video {video_len:.1f}s)")
             vstaged = str(fitted)
@@ -106,9 +126,11 @@ def render(run: Run, timeline: dict[str, Any], voice: dict[str, Any], *, use_cac
         mid = (c["start_s"] + c["end_s"]) / 2
         return any(a <= mid < b for a, b in card_windows)
     captions = [c for c in captions if not _over_card(c)]
+    words = [w for w in words if not _over_card(w)]
 
     render_plan = {"fps": timeline["fps"], "width": timeline["width"], "height": timeline["height"],
-                   "segments": segs, "audio": audio, "captions": captions,
+                   "segments": segs, "audio": audio, "captions": captions, "words": words,
+                   "caption_style": timeline.get("caption_style", "clean_pop"),
                    "palette": timeline.get("palette", [])}
     (run.dir / EDIT_PLAN_FILE).write_text(json.dumps(
         {"plan": render_plan, "total_s": timeline["total_s"], "reasoning": timeline.get("reasoning", "")},
@@ -157,18 +179,22 @@ def _video_limits(usable: list[dict], clips: dict, inventory: dict) -> dict[str,
     return limits
 
 
-def _editor_agent(run: Run, usable: list[dict], brief: dict, limits: dict[str, float]) -> dict[str, Any]:
-    """Editor Agent: order + per-segment duration + transitions (NOT captions — those come from the
-    voice's word timestamps). Durations are enforced to the target afterward; this is the creative
-    pass for pacing. Deterministic fallback offline."""
-    user = json.dumps({
+def _editor_agent(run: Run, usable: list[dict], brief: dict, limits: dict[str, float],
+                  feedback: str | None = None) -> dict[str, Any]:
+    """Editor Agent: order + per-segment duration + transitions + caption_style (NOT caption text —
+    that comes from the voice word timestamps). Durations enforced to target afterward; this is the
+    creative pass for pacing. `feedback` (from the edit reviewer) is baked into the regen. Stub offline."""
+    payload = {
         "target_duration_s": brief.get("total_duration_s"),
         "segments": [{"n": s.get("n"), "type": s.get("type"), "intent": s.get("intent", ""),
                       "duration_s": s.get("duration_s"),
                       **({"max_s": limits[str(s.get("n"))]} if str(s.get("n")) in limits else {})}
                      for s in usable],
         "pacing": brief.get("pacing"), "editing_feel": brief.get("editing_feel"),
-    }, indent=2)
+    }
+    if feedback:
+        payload["prior_attempt_failed_review"] = {"fix_these": feedback}
+    user = json.dumps(payload, indent=2)
     scaffold = (config.SCAFFOLDS_DIR / "editor.md").read_text()
     raw, thinking, in_tok, out_tok = call_claude(
         config.MODEL_ROUTER["editor_agent"], scaffold, user,
@@ -222,6 +248,7 @@ def _build_segments(agent: dict, by_n: dict, clips: dict, keyframes_map: dict,
         elif t == "card":
             seg["card_template"] = d.get("card_template", "EndCard")
             seg["card_text"] = d.get("card_text", "")
+            seg["card_animation"] = ps.get("animation", "scale_pop")  # editor picks the entrance
             bg = _card_bg(inventory, used_refs)             # photo-backed cards (kill the flat look)
             if bg:
                 seg["bg_src"] = _stage(sources, f"cardbg_{n}{Path(bg).suffix}", bg)
