@@ -2,7 +2,7 @@
 
 ## The pipeline
 ```
-triage → concept → director → enhance → keyframes → shots → voice → editor → review
+triage → concept → director → enhance → keyframes → shots → music → voice → editor → review
 ```
 - **triage** — local CV. Per-asset salvage/remediation plan; before/after gate (text-only); gap-ask.
 - **concept** — Gemini multimodal. Diverge, reject clichés, anchor on a real review detail, self-select
@@ -16,14 +16,18 @@ triage → concept → director → enhance → keyframes → shots → voice �
 - **shots** — Shot Agent. Per `seedance_shot`: compose single-shot prompt → Seedance image-to-video
   (silent) → Gemini Flash judges the clip → approve or retry ≤3 with judge feedback → flag after 3.
   Runs shots concurrently (Seedance is ~2 min/gen).
-- **voice** — one MiniMax TTS call (fal). Clean voiceover + locally-derived per-line caption timing.
-- **editor** — Editor Agent emits an EDIT PLAN (order / durations / transitions / caption style / card
-  animation), **critiqued by an editing reviewer loop** (`plan_timeline⟳`: first-0.5s grab / rhythm /
-  contrast / payoff); Remotion (`editor_render/`) renders the plan → final mp4. Assembles all four
-  segment types with **kinetic word-by-word captions** + **animated cards**. **Deferred to Phase 2
-  (built only when the current polish proves insufficient):** music bed + beat-synced cuts (Beatoven +
-  librosa), lower-thirds / stickers / broader motion graphics, multi-style kinetic typography. See
-  DECISIONS D24/D25.
+- **music** — one CassetteAI call (fal): an instrumental-only mood bed ≈ the ad length → librosa beat
+  grid `{music_path, bpm, beats[]}`. Runs after shots so the editor can snap cuts to the grid. Stubs
+  offline (no key → no music, empty beats → editor unaffected). Budget-gated; never raises. (D25)
+- **voice** — one ElevenLabs TTS call (fal). Clean voiceover + word-level timestamps (kinetic captions).
+- **editor** — Editor Agent emits an EDIT PLAN (order / durations / transitions / motion / overlays /
+  caption style / card animation), **critiqued by an editing reviewer loop** (`plan_timeline⟳`:
+  first-0.5s grab / rhythm / contrast / payoff / motion-graphics); Remotion (`editor_render/`) renders
+  the plan → final mp4. Assembles all four segment types with **kinetic word-by-word captions**
+  (clean_pop / emphasis / karaoke) + **animated cards**, **beat-snapped cuts** + a **ducked music bed**,
+  transitions {hard_cut, crossfade, dip_to_black, slide, whip, zoom}, video **motion** (punch_in /
+  parallax), and **overlays** (lower-thirds / badges). Bright line D21: all visuals are Remotion; the
+  only generated audio is the music bed. See DECISIONS D24/D25.
 - **review** — mechanical checks only on the FINAL video (playable, duration, not black). Per-shot
   quality already judged in `shots`; creative judgment is the operator's (06_operator_review.json).
 

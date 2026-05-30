@@ -43,7 +43,8 @@ def review(run: Run, stage: str, artifact: dict[str, Any], context: dict[str, An
                 + reference_block(["smb_verticals.md", "hooks.md", "ad_formats.md", "script_craft.md"]))
     user = json.dumps({"stage": stage, "artifact": artifact}, indent=2, default=str)
 
-    raw, thinking, in_tok, out_tok = call_claude(config.MODEL_ROUTER["reviewer"], scaffold, user)
+    # reviewers are judgment calls — no extended thinking (much faster; the loops stack up)
+    raw, thinking, in_tok, out_tok = call_claude(config.MODEL_ROUTER["reviewer"], scaffold, user, think=False)
     log_llm_call(run, f"{stage}_review", config.MODEL_ROUTER["reviewer"], scaffold[:300] + "...",
                  raw, in_tok, out_tok, 0, thinking)
     v = _normalize(parse_json(raw))

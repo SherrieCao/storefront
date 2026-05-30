@@ -49,6 +49,9 @@ MODEL_ROUTER = {
     # Voice: ElevenLabs eleven-v3 on fal — returns word/char timestamps, paces naturally
     # (VERIFIED, docs/voice_findings.md; supersedes MiniMax which gave no timestamps + padded pauses).
     "tts":               "fal-ai/elevenlabs/tts/eleven-v3",
+    # Music: CassetteAI on fal — instrumental-only mood-prompted bed; fast (~7s), VERIFIED (docs/
+    # music_findings.md). Replaced beatoven/music-generation, which submitted but hung in Queued forever.
+    "music":             "cassetteai/music-generator",
     # Enhancement (targeted salvage of weak real assets).
     "enhance_upscale":   "fal-ai/clarity-upscaler",
 }
@@ -76,6 +79,7 @@ SEEDANCE_RATE = {
 }
 NANO_BANANA_COST_PER_IMAGE = 0.08    # @1K (docs/nano_banana_findings.md); 2K=1.5x, 4K=2x
 TTS_COST_PER_1K_CHARS      = 0.10    # MiniMax speech-02-hd (docs/voice_findings.md)
+MUSIC_COST                 = 0.02    # CassetteAI music-generator ($0.02/min; ≤$0.01 for a 15-30s bed)
 FAL_ENHANCE_COST           = 0.03    # per remediated photo (clarity-upscaler)
 REMOTION_RENDER_COST       = 0.0     # local CLI render — no API cost (compute only)
 

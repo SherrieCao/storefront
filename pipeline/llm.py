@@ -94,19 +94,21 @@ def _thinking_config(types, model: str):
 
 
 def call_claude(model: str, system: str, user: str,
-                *, stub: Callable[[], str] | None = None,
+                *, stub: Callable[[], str] | None = None, think: bool = True,
                 ) -> tuple[str, str | None, int, int]:
-    """Call Claude. Returns (text, thinking, in_tok, out_tok)."""
+    """Call Claude. Returns (text, thinking, in_tok, out_tok). `think=False` disables extended thinking
+    — much faster; use it for judgment calls (reviewers) that don't need long reasoning."""
     if not config.ANTHROPIC_API_KEY:
         return (stub() if stub else "{}"), "STUB thinking: no ANTHROPIC_API_KEY set", 600, 500
     import anthropic
     client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
-    msg = client.messages.create(
+    kwargs: dict[str, Any] = dict(
         model=model, max_tokens=16000,
-        thinking={"type": "adaptive"},
-        system=[{"type": "text", "text": system,
-                 "cache_control": {"type": "ephemeral"}}],
+        system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": user}])
+    if think:
+        kwargs["thinking"] = {"type": "adaptive"}
+    msg = client.messages.create(**kwargs)
     text = "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
     thinking = "".join(b.thinking for b in msg.content if getattr(b, "type", "") == "thinking") or None
     u = msg.usage

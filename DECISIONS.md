@@ -176,7 +176,19 @@ The Remotion toolkit expanded just enough that the reviewer has tools to demand:
 captions (clean_pop / emphasis) replacing static caption blocks, and animated cards (scale_pop /
 slide_in / fade). Beat-sync, music bed, and broader motion graphics are deferred (D25, when needed).
 
-## D25 (deferred — Phase 2). Music bed + beat-sync + heavier motion-graphics
-Music (Beatoven on fal, royalty-free) + beat detection (librosa) → beat-synced cuts/captions + ducked
-music; lower-thirds / stickers / more transitions / animated b-roll. Grounded but NOT built — gated
-on the A–C polish (D22–D24) proving out first. See the plan / docs/ARCHITECTURE.md.
+## D25 (SHIPPED — Phase 2 / Workstream D). Music bed + beat-sync + heavier motion-graphics
+New `music` stage (after shots): an **instrumental-only** mood bed (`cassetteai/music-generator` on
+fal, ~7s, ≤$0.01) → **librosa** beat grid `{music_path, bpm, beats[]}`. The editor snaps interior cuts
+onto the beat grid (`_snap_to_beats`) and muxes the music **ducked** under the voice (a second Remotion
+`<Audio>`, gain 0.18 with a VO / 0.55 without). Heavier motion-graphics: transitions extended to
+{hard_cut, crossfade, dip_to_black, slide, whip, zoom}; per-video `motion` {punch_in, parallax};
+`overlay` {lower_third, badge}; a `karaoke` caption style. The editor scaffold (v0.4) + editing
+reviewer (v0.2, +`motion_graphics` lens) teach/judge them. Stubs offline (no FAL_KEY → no music, empty
+beats → editor renders exactly as before). Bright line D21 holds: music is audio + a grid; all visuals
+stay Remotion. Cost ceiling D6 unchanged.
+
+### D25a. CassetteAI replaced Beatoven for the music bed
+The original D plan used `beatoven/music-generation`. Its fal endpoint accepted requests but **hung in
+`Queued` forever** (worker never picked up the job — confirmed by polling `fal_client.status`). Swapped
+to `cassetteai/music-generator`: instrumental-only, ~7s latency, $0.02/min, output `{audio_file:{url}}`
+(WAV). One-line `MODEL_ROUTER["music"]` swap if Beatoven recovers. See docs/music_findings.md.

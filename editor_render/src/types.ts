@@ -1,6 +1,7 @@
 // Edit-plan schema the renderer consumes (produced by the Editor Agent).
+import {OverlaySpec} from './Overlay';
 export type SegmentType = 'seedance_shot' | 'real_clip' | 'moodboard' | 'card';
-export type Transition = 'hard_cut' | 'crossfade';
+export type Transition = 'hard_cut' | 'crossfade' | 'dip_to_black' | 'slide' | 'whip' | 'zoom';
 
 export type Segment = {
   type: SegmentType;
@@ -8,6 +9,8 @@ export type Segment = {
   src?: string; // staticFile name for seedance_shot / real_clip / moodboard keyframe
   trim_s?: [number, number]; // real_clip trim window
   playback_rate?: number; // speed-ramp for seedance_shot / real_clip (energy)
+  motion?: 'punch_in' | 'parallax'; // kinetic treatment for video (Ken Burns is automatic on moodboard)
+  overlay?: OverlaySpec; // lower-third / badge motion graphic on top of this segment
   card_template?: string; // EndCard | PriceTag | LocationPin | OfferBanner | Title
   card_text?: string;
   card_animation?: string; // scale_pop | slide_in | fade
@@ -24,6 +27,7 @@ export type EditPlan = {
   height: number;
   segments: Segment[];
   audio?: {src: string; gain?: number} | null;
+  music?: {src: string; gain?: number} | null; // mood bed ducked under the voice (beat-synced cuts)
   captions?: Caption[];
   words?: Word[]; // word-level timings for kinetic captions
   caption_style?: string; // clean_pop | emphasis

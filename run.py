@@ -18,11 +18,13 @@ load_dotenv()
 from pipeline import config
 from pipeline.tracing import setup_run
 from pipeline import (triage as tri, concept as concept_, director as dir_, enhance as enh,
-                      keyframes as kf_, shots as shots_, voice as voice_, editor as ed_,
-                      review as rev, lineage as lin, errors)
+                      keyframes as kf_, shots as shots_, music as music_, voice as voice_,
+                      editor as ed_, review as rev, lineage as lin, errors)
 from pipeline.budget import CostCeilingExceeded
 
-STEPS = ["triage", "concept", "director", "enhance", "keyframes", "shots", "voice", "editor", "review"]
+# "music" runs after shots, before the timeline is planned (the editor snaps cuts to its beat grid).
+STEPS = ["triage", "concept", "director", "enhance", "keyframes", "shots", "music",
+         "voice", "editor", "review"]
 
 
 def main() -> int:
@@ -71,12 +73,16 @@ def main() -> int:
         step = "enhance";   enh.enhance_assets(run, inventory, use_cache=cached("enhance"))
         step = "keyframes"; keyframes = kf_.run_keyframes(run, brief, inventory, use_cache=cached("keyframes"))
         step = "shots";     shots = shots_.run_shots(run, brief, inventory, keyframes, use_cache=cached("shots"))
+        step = "music";     music = music_.run_music(run, brief, use_cache=cached("music"))
         # Visuals-first spine: fix the visual timeline to the Director's length, THEN fit the voice to
-        # it, THEN render. plan_timeline runs whenever voice or editor will run fresh.
+        # it, THEN render. plan_timeline runs whenever voice or editor will run fresh; it snaps cuts to
+        # the music beat grid (music["beats"]).
         need_timeline = (not cached("voice")) or (not cached("editor"))
-        timeline = ed_.plan_timeline(run, brief, shots, keyframes, inventory) if need_timeline else {}
+        timeline = (ed_.plan_timeline(run, brief, shots, keyframes, inventory, beats=music.get("beats"))
+                    if need_timeline else {})
         step = "voice";     voice = voice_.run_voice(run, brief, timeline, use_cache=cached("voice"))
-        step = "editor";    final = ed_.render(run, timeline, voice, use_cache=cached("editor"))
+        step = "editor";    final = ed_.render(run, timeline, voice, music=music, use_cache=cached("editor"))
+        _flag_editor(run, timeline)            # surface an unresolved editor review (like creative flags)
         step = "review"
         edit_doc = _load(run.dir / "07_edit_plan.json")
         # final length is now deterministic (= the planned timeline); check the render against it.
@@ -157,6 +163,19 @@ def _collect_creative_flags(run, concept, brief) -> None:
         run.write_creative_flags(flags)
         run.log(f"[OPERATOR ACTION] {len(flags)} creative review(s) unresolved after retries "
                 f"({', '.join(f['stage'] for f in flags)}) — see creative_flags.json")
+
+
+def _flag_editor(run, timeline) -> None:
+    """If the editor's critic loop never passed, merge it into creative_flags.json + surface it."""
+    rv = (timeline or {}).get("_review", {})
+    if not rv or rv.get("passed", True):
+        return
+    existing = json.loads(run.creative_flags_path.read_text()) if run.creative_flags_path.exists() else []
+    existing.append({"stage": "editor", "failed_lenses": rv.get("failed_lenses", []),
+                     "scores": rv.get("scores", {})})
+    run.write_creative_flags(existing)
+    run.log(f"[OPERATOR ACTION] editor review unresolved after retries ({rv.get('failed_lenses')}) "
+            f"— accepted best; see creative_flags.json")
 
 
 def _meta(d: Path, k: str):

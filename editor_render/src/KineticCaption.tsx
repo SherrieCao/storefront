@@ -1,5 +1,6 @@
 // Kinetic captions — TikTok-style word-by-word reveal, timed to the voice word timestamps.
-// Styles: clean_pop (each word fades + scales in), emphasis (key words enlarged + accent color).
+// Styles: clean_pop (each word fades + scales in), emphasis (key words enlarged + accent color),
+// karaoke (whole line shown; the current word fills with the accent + lifts — sing-along feel).
 import {AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig} from 'remotion';
 
 export type Word = {w: string; start_s: number; end_s: number};
@@ -32,8 +33,20 @@ export const KineticCaption: React.FC<{words: Word[]; style?: string; palette?: 
         {active.map((word, i) => {
           const s = spring({frame: frame - word.start_s * fps, fps,
                             config: {damping: 12, stiffness: 200, mass: 0.5}});
-          const shown = t >= word.start_s - 0.12;
           const isCurrent = t >= word.start_s && t < word.end_s + 0.2;
+          // karaoke: the whole chunk is on screen from the start; the current word fills/lifts.
+          if (style === 'karaoke') {
+            const past = t >= word.start_s - 0.05;
+            return (
+              <span key={i} style={{
+                fontFamily: FONT, fontWeight: 800, fontSize: 64, lineHeight: 1.1,
+                color: isCurrent ? accent : past ? 'white' : 'rgba(255,255,255,0.55)',
+                transform: `translateY(${isCurrent ? interpolate(s, [0, 1], [6, -4]) : 0}px)`,
+                textShadow: '0 3px 14px rgba(0,0,0,0.9)',
+              }}>{word.w}</span>
+            );
+          }
+          const shown = t >= word.start_s - 0.12;
           const big = style === 'emphasis' && word.w.replace(/[^A-Za-z0-9]/g, '').length >= 5;
           const color = style === 'emphasis' && (big || isCurrent) ? accent : 'white';
           const scale = shown ? interpolate(s, [0, 1], [0.6, isCurrent ? 1.12 : 1.0]) : 0.6;

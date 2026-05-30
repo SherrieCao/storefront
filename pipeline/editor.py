@@ -26,7 +26,12 @@ from . import reviewers                       # edit-plan critic loop
 EDIT_PLAN_FILE = "07_edit_plan.json"
 OUTPUT_FILE = "09_output/final.mp4"
 VOICE_DIR_FIT = "06_voice/voiceover_fit.mp3"
-_TRANSITIONS = {"hard_cut", "crossfade"}
+# Transition vocabulary the Editor Agent may pick from (D4). Only crossfade overlaps; the rest are
+# in-window entrances. MUST match editor_render/src/types.ts Transition + AdComposition TransitionWrap.
+_TRANSITIONS = {"hard_cut", "crossfade", "dip_to_black", "slide", "whip", "zoom"}
+_MOTIONS = {"punch_in", "parallax"}                 # kinetic treatment for video segments (D4)
+_OVERLAY_KINDS = {"lower_third", "badge"}
+_BADGE_POS = {"tl", "tr", "bl", "br"}
 _CROSSFADE_S = 0.4    # MUST match editor_render/src/AdComposition.tsx CROSSFADE_S
 _MIN_SEG_S = 1.2
 
@@ -34,7 +39,8 @@ _MIN_SEG_S = 1.2
 # --- PLAN: fix the visual timeline to total_duration_s (no voice, no render) -----------------------
 
 def plan_timeline(run: Run, brief: dict[str, Any], shots_result: dict[str, Any],
-                  keyframes_map: dict[str, Any], inventory: dict[str, Any]) -> dict[str, Any]:
+                  keyframes_map: dict[str, Any], inventory: dict[str, Any],
+                  beats: list[float] | None = None) -> dict[str, Any]:
     by_n = {str(s.get("n")): s for s in brief.get("segments", [])}
     clips = shots_result.get("clips", {})
     usable = _usable_segments(brief, clips, keyframes_map, inventory)
@@ -60,6 +66,7 @@ def plan_timeline(run: Run, brief: dict[str, Any], shots_result: dict[str, Any],
 
     segs, sources = _build_segments(agent, by_n, clips, keyframes_map, inventory, limits)
     _fit_to_total(run, segs, target)                        # clamp + reconcile durations to target
+    _snap_to_beats(run, segs, beats)                        # nudge cuts onto the music beat grid (D3)
     total_s = _assign_timestamps(segs)                      # cumulative start/end (crossfade-aware)
 
     timeline = {"fps": config.FPS, "width": 1080, "height": 1920,
@@ -73,8 +80,10 @@ def plan_timeline(run: Run, brief: dict[str, Any], shots_result: dict[str, Any],
     return timeline
 
 
-def render(run: Run, timeline: dict[str, Any], voice: dict[str, Any], *, use_cache: bool = False) -> str:
-    """One Remotion pass: fixed timeline + voice (atempo-fit to the video) + rescaled captions."""
+def render(run: Run, timeline: dict[str, Any], voice: dict[str, Any], *,
+           music: dict[str, Any] | None = None, use_cache: bool = False) -> str:
+    """One Remotion pass: fixed timeline + voice (atempo-fit to the video) + rescaled captions + a
+    music bed ducked under the voice (D3)."""
     out = run.dir / OUTPUT_FILE
     if use_cache and out.exists():
         run.log("Editor: render loaded from cache"); return str(out)
@@ -128,8 +137,18 @@ def render(run: Run, timeline: dict[str, Any], voice: dict[str, Any], *, use_cac
     captions = [c for c in captions if not _over_card(c)]
     words = [w for w in words if not _over_card(w)]
 
+    # Music bed: a second audio track ducked UNDER the voice (low gain when there's a VO, fuller if
+    # there's none so the ad still carries). Beatoven generated it ≈ the timeline length.
+    music_track = None
+    mpath = (music or {}).get("music_path")
+    if mpath and Path(mpath).exists():
+        sources["music.mp3"] = mpath
+        music_track = {"src": "music.mp3", "gain": 0.18 if audio else 0.55}
+        run.log(f"Editor: music bed ducked under voice (gain {music_track['gain']})")
+
     render_plan = {"fps": timeline["fps"], "width": timeline["width"], "height": timeline["height"],
-                   "segments": segs, "audio": audio, "captions": captions, "words": words,
+                   "segments": segs, "audio": audio, "music": music_track,
+                   "captions": captions, "words": words,
                    "caption_style": timeline.get("caption_style", "clean_pop"),
                    "palette": timeline.get("palette", [])}
     (run.dir / EDIT_PLAN_FILE).write_text(json.dumps(
@@ -235,6 +254,11 @@ def _build_segments(agent: dict, by_n: dict, clips: dict, keyframes_map: dict,
             trans = "hard_cut"
         seg: dict[str, Any] = {"type": t, "duration_s": max(0.5, float(ps.get("duration_s") or 3)),
                                "transition_in": trans, "_max_s": limits.get(n)}
+        ov = _overlay(ps.get("overlay"))                  # lower-third / badge motion graphic (D4)
+        if ov:
+            seg["overlay"] = ov
+        if t in ("seedance_shot", "real_clip") and ps.get("motion") in _MOTIONS:
+            seg["motion"] = ps["motion"]                  # punch-in / parallax on video (D4)
         if t == "seedance_shot":
             seg["src"] = _stage(sources, f"shot_{n}.mp4", clips[n])
             seg["playback_rate"] = config.VIDEO_PLAYBACK_RATE
@@ -254,6 +278,22 @@ def _build_segments(agent: dict, by_n: dict, clips: dict, keyframes_map: dict,
                 seg["bg_src"] = _stage(sources, f"cardbg_{n}{Path(bg).suffix}", bg)
         out.append(seg)
     return out, sources
+
+
+def _overlay(o: Any) -> dict[str, Any] | None:
+    """Validate an Editor-Agent overlay spec (D4). Drops malformed/empty ones (fail-safe: no overlay
+    rather than a broken render). Shape mirrors editor_render/src/Overlay.tsx OverlaySpec."""
+    if not isinstance(o, dict) or o.get("kind") not in _OVERLAY_KINDS:
+        return None
+    text = str(o.get("text", "")).strip()
+    if not text:
+        return None
+    out: dict[str, Any] = {"kind": o["kind"], "text": text[:60]}
+    if o.get("position") in _BADGE_POS:
+        out["position"] = o["position"]
+    if isinstance(o.get("accent"), str) and o["accent"].startswith("#"):
+        out["accent"] = o["accent"]
+    return out
 
 
 def _card_bg(inventory: dict, used_refs: set[str]) -> str | None:
@@ -313,6 +353,30 @@ def _assign_timestamps(segs: list[dict]) -> float:
     return cursor
 
 
+def _snap_to_beats(run: Run, segs: list[dict], beats: list[float] | None) -> None:
+    """Beat-sync (D3): nudge each interior cut to the nearest music beat, within half a beat, so cuts
+    land ON the beat — the core of the social-native rhythmic feel. Adjusts durations in place,
+    respecting each segment's cap (_max_s for video, EDITOR_MAX_EXTENSIBLE_S for cards) and the seg
+    floor. The last segment is left to absorb residual drift. No beats -> no-op (offline/no music)."""
+    grid = sorted(float(b) for b in (beats or []) if isinstance(b, (int, float)) and b > 0.3)
+    if len(grid) < 2 or len(segs) < 2:
+        return
+    interval = (grid[-1] - grid[0]) / (len(grid) - 1)       # avg beat period
+    tol = max(0.18, interval * 0.5)
+    cursor, snapped = 0.0, 0
+    for s in segs[:-1]:
+        raw_end = cursor + s["duration_s"]
+        nb = min(grid, key=lambda b: abs(b - raw_end))
+        cap = s["_max_s"] if s["_max_s"] is not None else config.EDITOR_MAX_EXTENSIBLE_S
+        if abs(nb - raw_end) <= tol:
+            new_dur = max(_MIN_SEG_S, min(nb - cursor, cap))
+            if abs(new_dur - s["duration_s"]) > 0.02:
+                s["duration_s"] = round(new_dur, 2); snapped += 1
+        cursor += s["duration_s"]
+    if snapped:
+        run.log(f"Editor: beat-snapped {snapped} cut(s) to the ~{60 / interval:.0f} BPM grid")
+
+
 def _stage(sources: dict[str, str], name: str, src: str | None) -> str:
     if src:
         sources[name] = src
@@ -357,7 +421,9 @@ def _render(run: Run, render_plan: dict, sources: dict[str, str], out_path: str)
     prefixed = {**render_plan,
                 "segments": [_pref(s) for s in render_plan["segments"]],
                 "audio": ({**render_plan["audio"], "src": f"{run.run_id}/{render_plan['audio']['src']}"}
-                          if render_plan.get("audio") else None)}
+                          if render_plan.get("audio") else None),
+                "music": ({**render_plan["music"], "src": f"{run.run_id}/{render_plan['music']['src']}"}
+                          if render_plan.get("music") else None)}
     props = config.EDITOR_RENDER_DIR / "public" / f"_props_{run.run_id}.json"
     props.write_text(json.dumps({"plan": prefixed}))
 
