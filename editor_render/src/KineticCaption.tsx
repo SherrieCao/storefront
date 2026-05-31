@@ -2,12 +2,11 @@
 // the word currently being spoken: within the on-screen line, exactly one word is highlighted — the
 // most-recently-STARTED word (advances on each word's start_s, persists through inter-word gaps, never
 // double-highlights). This invariant holds for EVERY style; styles differ only in how words reveal/sit,
-// not in WHAT gets highlighted.
-//   clean_pop — words fade + scale in as spoken; the spoken word turns accent.
-//   emphasis  — same reveal; the spoken word turns accent AND pops larger (a moving emphasis).
-//   karaoke   — whole line shown at once; unspoken words dim; the spoken word turns accent + lifts.
-// (Earlier emphasis colored every long word regardless of timing, so the accent rarely sat on the
-//  spoken word — that read as "highlighting the wrong word." This removes length-based coloring.)
+// not in WHAT gets highlighted. The highlight is by BRIGHTNESS: the spoken word is bright WHITE, every
+// other word is GREY (no brand-color accent — a grey palette[0] once reversed it).
+//   clean_pop — words fade + scale in as spoken; the spoken word is white, the rest grey.
+//   emphasis  — same reveal; the spoken word is white AND pops larger (a moving emphasis).
+//   karaoke   — whole line shown at once; the spoken word is white, the rest grey + a small lift.
 import {AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig} from 'remotion';
 
 export type Word = {w: string; start_s: number; end_s: number};
@@ -32,7 +31,11 @@ export const KineticCaption: React.FC<{words: Word[]; style?: string; palette?: 
   const groups = chunk(words, CHUNK);
   const active = groups.find((g) => t >= g[0].start_s - 0.15 && t < g[g.length - 1].end_s + 0.25);
   if (!active) return null;
-  const accent = (palette && palette[0]) || '#FFE14D';
+  // Highlight by BRIGHTNESS, not brand color: the spoken word is bright white, the rest recede to grey.
+  // (Using palette[0] as an accent backfired — a brand grey like #505558 made the spoken word the DIM
+  // one and the rest white, i.e. reversed.)
+  const LIVE = '#ffffff';
+  const DIM = 'rgba(255,255,255,0.45)';
 
   // The highlighted word = the most-recently-started word in this line (tracks speech; exactly one,
   // no gaps, no overlaps). -1 during the brief pre-roll before the line's first word begins.
@@ -49,11 +52,10 @@ export const KineticCaption: React.FC<{words: Word[]; style?: string; palette?: 
                                  config: {damping: 12, stiffness: 200, mass: 0.5}});
 
           if (style === 'karaoke') {
-            const started = i <= currentIdx;     // already spoken or speaking
             return (
               <span key={i} style={{
-                fontFamily: FONT, fontWeight: 800, fontSize: SIZE, lineHeight: 1.1,
-                color: isCurrent ? accent : started ? 'white' : 'rgba(255,255,255,0.55)',
+                fontFamily: FONT, fontWeight: isCurrent ? 900 : 800, fontSize: SIZE, lineHeight: 1.1,
+                color: isCurrent ? LIVE : DIM,   // spoken word bright white; the rest grey
                 transform: `translateY(${isCurrent ? interpolate(reveal, [0, 1], [6, -4]) : 0}px)`,
                 textShadow: '0 3px 14px rgba(0,0,0,0.9)',
               }}>{word.w}</span>
@@ -66,8 +68,8 @@ export const KineticCaption: React.FC<{words: Word[]; style?: string; palette?: 
           const scale = (shown ? interpolate(reveal, [0, 1], [0.6, 1.0]) : 0.6) * pop;
           return (
             <span key={i} style={{
-              fontFamily: FONT, fontWeight: 800, fontSize: SIZE, lineHeight: 1.1,
-              color: isCurrent ? accent : 'white',
+              fontFamily: FONT, fontWeight: isCurrent ? 900 : 800, fontSize: SIZE, lineHeight: 1.1,
+              color: isCurrent ? LIVE : DIM,   // spoken word bright white; the rest grey
               opacity: shown ? interpolate(reveal, [0, 1], [0, 1]) : 0,
               transform: `scale(${scale})`, transformOrigin: 'center bottom',
               textShadow: '0 3px 14px rgba(0,0,0,0.9)',
