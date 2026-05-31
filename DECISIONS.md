@@ -229,3 +229,21 @@ as the voice says them). The no-caption tail when voice < video is left silent (
   feature-list body directly — the body must EXTEND the hook's POV, not pivot to a brochure; a list-y
   body is a reviewer FAIL with a *sharpening* fix. Operator-supplied real transcripts slot into
   `script_craft.md` (the highest-leverage lever) — already wired into Concept/Director/Reviewer.
+
+## D28 (SHIPPED — Workstream F). The spoken script does NOT sell; the closing CARD sells
+Operator audit: output still "read as a scripted ad" because the **spoken VO was forced to carry the
+sale** — `creative_director.md` mandated price/hours/location/booking in the script, so even a strong
+hook+idea got a brochure tail ("…losing their mind with joy. Carol's. Book their spot."). The moment the
+voice pivots to logistics, it reads as an advertisement. Fix: the VO = HOOK + ONE true idea, and it
+**ends on the idea** — NO CTA, NO logistics in the spoken script. ALL practical/conversion info
+(name/location/hours/booking) moves to a **mandatory closing `card`** (the conversion surface that frees
+the voice). Director scaffold v1.2 + concept gate + `script_craft.md` (structure + examples rewritten to
+VO-idea-only) + creative reviewer v0.3: the bar is now **earned viewer attention** ("would a scroller
+stop, watch to the end, not clock it as a desperate ad — while still knowing what/where from the card"),
+and a **spoken CTA/logistics line in the VO is a FAIL** (info on the card is good; in the voice is the
+defect). Also (F2): a `seedance_shot` MUST seed from a real `@Image` (image-to-video animating the
+business's own photo); pure text-to-video ("generated") is banned (AI-stock undercuts authenticity) —
+`director._validate` drops a non-@Image shot as a safety net. Pacing (E2) unchanged. Editor's short-VO
+pacing warning relaxed (F3): a short VO is intentional when the tail is covered by card/moodboard beats.
+This narrows toward the paid-ad path on purpose — the organic/`distribution_mode` pivot is researched +
+parked for after a confident paid ad is tested against real traffic.

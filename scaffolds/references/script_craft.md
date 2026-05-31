@@ -10,8 +10,11 @@ one viewer. Authenticity > polish. Talk TO the viewer ("you"), short conversatio
 corporate jargon, weave the info in instead of announcing it. ~30 words for 15s — say ONE thing well.
 
 ## Structure (battle-tested across 100k+ viral videos)
-**Hook (first ~3s) → Problem/tension → Solution (the business) → CTA.** 80% decide in 3 seconds, so
-the hook is everything. Change something every ~5s (a beat, a tone shift, a new shot) to hold attention.
+**Hook (first ~3s) → ONE true idea, developed → end on the idea.** 80% decide in 3 seconds, so the hook
+is everything. Change something every ~5s (a beat, a tone shift, a new shot) to hold attention.
+**The spoken script does NOT carry the CTA or logistics** — name / location / hours / booking live on a
+closing CARD, not the voice-over. A spoken "book now / right off the X / open 7 days" is what makes it
+sound like an ad. Let the voice be a real person saying one true thing; let the card do the selling.
 
 ## Hook patterns (open with one; combine two for power)
 - **POV / second-person:** "POV: you finally found a [thing] that [benefit]." / "This is your sign to…"
@@ -43,14 +46,18 @@ the hook is everything. Change something every ~5s (a beat, a tone shift, a new 
 - **influencer_pov** — first-person, conversational, POV-framed ("POV: you booked the salon that gets
   your hair"). Voice-led, strong angle. For aspirational/lifestyle-fit businesses.
 
-## [ILLUSTRATIVE FRAMEWORK EXAMPLE] — not real ads; showing the framework applied
-- **Nail studio (social_native):** "Your nails should outlast your situationship. Gel sets that go three
-  weeks, no chips — downtown, walk-ins Thursdays. Come find your color." (~24 words; hook = relatable +
-  bold, info woven, native CTA.)
-- **Bakery (social_native):** "The croissants are gone by nine. We start the dough at five so you don't
-  have to. Main Street, every morning — get there early." (~26 words; sensory + scarcity hook.)
-- **Dog daycare (influencer_pov):** "POV: it's 8am and your dog is more excited for work than you are.
-  Right off the 101 — drop-off in two minutes, photos all day." (~28 words; POV hook, specific detail.)
+## [ILLUSTRATIVE FRAMEWORK EXAMPLE] — not real ads; the VO is idea-only, the CARD carries the info
+The spoken line stays in the idea and ENDS there; the practical info (in parentheses) goes on the
+closing card, never the voice-over.
+- **Nail studio (social_native):** VO — "Your nails should outlast your situationship. Three weeks,
+  zero chips, not even at the gym." (~18 words; relatable + bold, ends on the idea.)
+  Card — "Polish Lab · Downtown · Walk-ins Thursdays · Book online."
+- **Bakery (social_native):** VO — "The croissants are gone by nine. We start the dough at five —
+  while you're still hitting snooze." (~20 words; sensory + scarcity, ends on the idea.)
+  Card — "Rye & Co · Main Street · Fresh from 6am."
+- **Dog daycare (influencer_pov):** VO — "POV: it's 8am and your dog is more excited for work than you
+  are. You'll get the photos to prove it." (~24 words; POV hook, ends on the idea.)
+  Card — "Carol's Dog Daycare · Right off the 101 · Drop-off in 2 min · Book today."
 
 ## ADD REAL EXAMPLES HERE  ← operator: grow this; real beats illustrative
 As you scroll IG/TikTok or browse the Meta Ad Library, when an ad makes you STOP, paste it below:

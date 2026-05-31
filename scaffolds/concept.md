@@ -50,12 +50,14 @@ and do NOT invent a review or detail (a fabricated detail is worse than none).
   must be generated. If it needs footage you don't have AND can't plausibly generate, reject it.
 - **Before/after:** if "Before/after available" is False, NO concept may depend on a real
   before/after (same hard gate as the rest of the pipeline).
-- **Still an ad:** the concept must let the final ad carry the load-bearing practical info
-  (price / hours / location / booking). Bold, but it still has to drive traffic.
-- **CLARITY:** a first-time viewer who has never heard of this business must immediately understand
-  WHAT it offers and WHY they'd go — in plain terms, not only as a joke. If the concept is a bit, the
-  bit must SERVE the value prop, not replace it. A concept that's funny/clever but leaves the viewer
-  unsure what's being sold is INVALID (it won't bring traffic — see WHY/quality bar).
+- **Still an ad — but the CARD sells, not the script:** the final ad ends on a card carrying the
+  practical info (name / location / hours / booking), so the concept doesn't need to be a sales pitch
+  and the spoken script will NOT recite logistics. Don't gate the idea on "can the voice-over say the
+  price" — gate it on "can a closing card + the visuals make WHAT/WHERE clear." Bold is good; salesy is not.
+- **CLARITY:** a first-time viewer who has never heard of this business must come away understanding
+  WHAT it offers and WHY they'd go — from the visuals + the closing card (NOT necessarily stated in the
+  voice-over). If the concept is a bit, the bit must SERVE the value prop, not replace it. A concept
+  that's funny/clever but leaves the viewer unsure what's being sold is INVALID.
 
 ## SELF-SELECT
 Pick the SINGLE boldest concept that passes the gates and is still defensible-as-an-ad. Output it as
@@ -74,7 +76,7 @@ Pick the SINGLE boldest concept that passes the gates and is still defensible-as
     "why_bold": "what makes it surprising / not the cliché",
     "assets_used": ["@Image1", "@Video1"],
     "must_generate": ["what needs generation, if anything"],
-    "load_bearing_info": "how price/hours/location/booking still fits"
+    "load_bearing_info": "how the CLOSING CARD carries name/location/hours/booking (not the script)"
   }
 }
 ```
@@ -84,5 +86,5 @@ Pick the SINGLE boldest concept that passes the gates and is still defensible-as
 - 5 concepts considered; the first 2 named-and-rejected as clichés in `rejected`.
 - Every concept's assets_used must be @-refs from the asset_summary; reject infeasible concepts.
 - If "Before/after available" is False, the chosen concept must NOT depend on a real before/after.
-- The chosen concept must keep price/hours/location/booking expressible.
+- The chosen concept must keep name/location/hours/booking expressible on a closing CARD (not the script).
 - If business_research.found is true, the chosen concept must build on its real detail; if false, never invent one.

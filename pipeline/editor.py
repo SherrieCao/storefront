@@ -99,9 +99,14 @@ def render(run: Run, timeline: dict[str, Any], voice: dict[str, Any], *,
     vpath = voice.get("audio_path")
     if vpath and Path(vpath).exists():
         voice_dur = (voice.get("duration_ms") or 0) / 1000 or video_len
-        if voice_dur and voice_dur < 0.6 * video_len:
-            run.log(f"[PACING WARNING] voice {voice_dur:.1f}s < 60% of the {video_len:.1f}s timeline — "
-                    f"script likely too short for total_duration_s; Director should pick a shorter total.")
+        # F1: the freed script (VO = hook + idea, no CTA) is intentionally shorter than the video — the
+        # closing card + music carry the tail. Only warn if the post-voice tail is NOT covered by
+        # card/moodboard beats (i.e. the short VO actually leaves dead video, not a deliberate card tail).
+        tail_segs = [s for s in timeline["segments"] if s.get("end_s", 0.0) > voice_dur + 0.3]
+        tail_covered = bool(tail_segs) and all(s.get("type") in ("card", "moodboard") for s in tail_segs)
+        if voice_dur and voice_dur < 0.6 * video_len and not tail_covered:
+            run.log(f"[PACING WARNING] voice {voice_dur:.1f}s < 60% of the {video_len:.1f}s timeline and "
+                    f"the tail isn't covered by card/moodboard beats — likely dead video at the end.")
         tempo = 1.0
         if voice_dur > video_len + 0.1:
             tempo = min(round(voice_dur / video_len, 3), config.VOICE_MAX_ATEMPO)

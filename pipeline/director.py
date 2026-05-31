@@ -116,6 +116,14 @@ def _validate(brief: dict[str, Any]) -> dict[str, Any] | None:
         return None
     if any(s.get("type") not in SEGMENT_TYPES for s in segs):
         return None
+    # F2: a seedance_shot MUST seed from a REAL photo (@Image…). A pure text-to-video shot ("generated"
+    # or any non-@Image ref) reads as AI-stock and undercuts authenticity — drop it (safety net; the
+    # scaffold already forbids it). If that empties the plan, return None to regenerate.
+    segs = [s for s in segs
+            if s.get("type") != "seedance_shot" or str(s.get("asset_ref", "")).startswith("@Image")]
+    if not segs:
+        return None
+    brief["segments"] = segs
     dur = brief.get("total_duration_s")
     if not isinstance(dur, (int, float)) or dur <= 0:
         dur = sum(float(s.get("duration_s") or 0) for s in segs) or config.MIN_DURATION_S
