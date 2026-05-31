@@ -247,3 +247,16 @@ business's own photo); pure text-to-video ("generated") is banned (AI-stock unde
 pacing warning relaxed (F3): a short VO is intentional when the tail is covered by card/moodboard beats.
 This narrows toward the paid-ad path on purpose — the organic/`distribution_mode` pivot is researched +
 parked for after a confident paid ad is tested against real traffic.
+
+## D29 (SHIPPED — Workstream G). Input contract = `brief.json {name, location, brief}`; research queries the NAME
+The Google review lookup silently failed on a real business (Conway Nail Bar, 2000+ reviews) because
+`research_business` queried `f"{business} {brief}"` — the underscored run-label + the whole marketing
+brief; a place-search API wants a NAME, not free-text copy (an Explore agent confirmed live: the brief's
+"…on Google Map." phrase alone zeroes the search; the clean name matches instantly). Fix: query Google
+with the **name (+ optional location to disambiguate)**, never the brief; de-underscore in case the name
+came from a slug (`pipeline/research.py`). Input contract: `triage` now prefers **`brief.json`**
+`{name, location, brief}` (falls back to free-text `brief.txt` + `--business`). Kept deliberately minimal
++ vertical-agnostic — only `name`/`location` are structured (what the pipeline mechanically needs);
+everything business-specific stays in the free-text `brief` (no service-specific fields to overfit).
+`location` also flows to the Director payload so the F closing card can carry the real location. Verified:
+Conway → `found:true`, real detail ("recreates your reference photo exactly — snow leopard print").

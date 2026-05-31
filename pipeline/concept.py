@@ -102,7 +102,8 @@ def _business_research(run: Run, inventory: dict[str, Any]) -> dict[str, Any]:
     if cache.exists():
         return json.loads(cache.read_text())
     set_active_run(run)                              # so research_business's distill call is logged/costed
-    res = research_business(business=inventory.get("business", ""), brief=inventory.get("brief", ""))
+    res = research_business(business=inventory.get("business", ""),
+                            location=inventory.get("location", ""), brief=inventory.get("brief", ""))
     set_active_run(None)
     cache.write_text(json.dumps(res, indent=2))
     if res.get("found"):

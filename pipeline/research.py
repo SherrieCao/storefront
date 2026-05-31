@@ -87,18 +87,22 @@ def _yelp_reviews(business: str, location: str) -> dict[str, Any]:
       "customer reviews to anchor the concept (fights generic). Returns {found, detail, evidence, source, "
       "matched_name, matched_address, rating}; found:false if it can't be reliably matched.",
       {"type": "object",
-       "properties": {"business": {"type": "string", "description": "the business name"},
-                      "brief":    {"type": "string", "description": "operator brief (for the location)"}},
+       "properties": {"business": {"type": "string", "description": "the business NAME"},
+                      "location": {"type": "string", "description": "city/area (disambiguates the lookup)"},
+                      "brief":    {"type": "string", "description": "operator brief (unused for the query)"}},
        "required": ["business"]},
       not_for="fabricating reviews or details — only distill from fetched review text")
-def research_business(business: str = "", brief: str = "") -> dict[str, Any]:
-    # Google first; reuse its matched address as the Yelp location (more reliable than parsing the brief).
-    g = _google_reviews(f"{business} {brief}".strip()[:300])
-    location = g.get("address") or brief
-    y = _yelp_reviews(business, location[:120]) if location else {}
+def research_business(business: str = "", location: str = "", brief: str = "") -> dict[str, Any]:
+    # Query Google with the NAME (+ location to disambiguate) — NOT the free-text brief, which is
+    # marketing copy a geocoder chokes on. De-underscore in case the name came from a --business slug.
+    name = (business or "").replace("_", " ").strip()
+    query = f"{name} {location}".strip() if location else name
+    g = _google_reviews(query) if name else {}
+    loc = g.get("address") or location or brief
+    y = _yelp_reviews(name, loc[:120]) if loc else {}
 
     reviews = (g.get("reviews") or []) + (y.get("reviews") or [])
-    matched_name = g.get("name") or y.get("name") or business
+    matched_name = g.get("name") or y.get("name") or name
     matched_address = g.get("address") or y.get("address") or ""
     sources = [name for name, d in (("google", g), ("yelp", y)) if d.get("reviews")]
     rating = g.get("rating") or y.get("rating")

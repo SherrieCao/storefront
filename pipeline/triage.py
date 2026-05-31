@@ -127,6 +127,23 @@ def extract_palette(image_path: str, k: int = 4) -> list[str]:
 
 
 @traced_tool
+def _load_brief(snap, fallback_business: str) -> tuple[str, str, str]:
+    """Input contract: prefer `brief.json` {name, location, brief}; fall back to free-text `brief.txt`
+    (+ the --business label as the name). `name` gives the research lookup a clean business name;
+    `location` disambiguates it; `brief` is the free-text creative ask (carries everything else)."""
+    bj = snap / "brief.json"
+    if bj.exists():
+        try:
+            d = json.loads(bj.read_text())
+            return (str(d.get("name") or fallback_business).strip(),
+                    str(d.get("location") or "").strip(),
+                    str(d.get("brief") or "").strip())
+        except Exception:
+            pass
+    txt = (snap / "brief.txt").read_text().strip() if (snap / "brief.txt").exists() else ""
+    return fallback_business, "", txt
+
+
 def parse_before_after(brief: str) -> dict[str, Any]:
     """Read explicit before/after statements from the brief (operator's words = truth).
 
@@ -200,11 +217,11 @@ def run_triage(run: Run, input_dir: Path, *, use_cache: bool = False) -> dict[st
     img_assessments = [assess_image(str(p)) for p in photo_paths]
     vid_assessments = [assess_video(str(p)) for p in videos]
 
-    brief = (snap / "brief.txt").read_text().strip() if (snap / "brief.txt").exists() else ""
+    biz_name, location, brief = _load_brief(snap, run.business)
     ba = parse_before_after(brief)
 
     inventory = {
-        "business": run.business, "brief": brief,
+        "business": biz_name, "location": location, "brief": brief,
         "has_logo": logo is not None, "logo_path": logo, "palette": palette,
         "images": img_assessments, "videos": vid_assessments,
         "has_before_after": ba["has_before_after"], "before_after_source": ba["source"],

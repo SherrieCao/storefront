@@ -42,7 +42,8 @@ def run_director(run: Run, inventory: dict[str, Any], concept: dict[str, Any] | 
     if inventory.get("logo_path"): image_paths.insert(0, inventory["logo_path"])
 
     base_payload = {
-        "business": inventory["business"], "brief": inventory["brief"],
+        "business": inventory["business"], "location": inventory.get("location", ""),
+        "brief": inventory["brief"],
         "has_before_after": inventory["has_before_after"],
         "has_logo": inventory["has_logo"], "palette": inventory["palette"],
         "chosen_concept": (concept or {}).get("chosen", {}),   # EXECUTE this (don't re-ideate)
