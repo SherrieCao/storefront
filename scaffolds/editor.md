@@ -37,8 +37,9 @@
    - `lower_third` — an animated name/handle/location chip (e.g. "@carolsdogdaycare" / "Open 7 days").
    - `badge` — a popped corner sticker for a single punchy fact ("★4.9", "20% OFF", "WALK-INS OK"),
      `position` ∈ {tl,tr,bl,br}. Keep text ≤ ~4 words. Use 1–2 total — they punctuate, not clutter.
-5. **`caption_style`** (one, global): `clean_pop` (each word fades+scales in — default) | `emphasis`
-   (key words enlarged + accent color) | `karaoke` (line shown, current word fills with accent + lifts).
+5. **`caption_style`** (one, global) — in ALL three the highlight tracks the SPOKEN word (accent on the
+   word being said): `clean_pop` (words fade+scale in; spoken word accent — default) | `emphasis` (same,
+   but the spoken word also pops larger) | `karaoke` (whole line shown, unspoken dim, spoken word accent + lifts).
 6. **Card `animation`** (per card segment): `scale_pop` | `slide_in` | `fade` — the entrance.
 
 ## Plan to pass the editor reviewer — it judges:

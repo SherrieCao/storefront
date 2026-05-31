@@ -210,9 +210,21 @@ Tuning pass from the first live run's operator review (run 0008, Carol's Dog Day
   shipped 6 beats over 18s ≈ 3s/beat — exactly this trap). Editor holds tightened: `EDITOR_MAX_EXTENSIBLE_S`
   4→3, `EDITOR_TARGET_BEAT_S` 2→1.5; scaffolds name the slow-cadence anti-pattern. `VIDEO_PLAYBACK_RATE`
   stays 1.25 (motion natural).
-- **Emphasis captions fixed.** `alignItems:baseline` + drop the current-word `scale(1.12)` (it shoved
-  neighbors and, with mixed emphasis sizes, read as misalignment) — emphasis now = size + accent color;
-  big-word threshold ≥6; word-timing rescale at 3 dp so the highlight tracks the spoken word.
+- **Emphasis captions fixed (then re-fixed in E6).** First pass: `alignItems:baseline` + 3 dp word-time
+  rescale. But the real bug was deeper — see **D27**.
+
+## D27 (SHIPPED — E6). Caption highlight tracks the SPOKEN word, in every style
+Operator: the highlight kept landing on the wrong word, or none. Root cause (diagnosed on runs 0008/0009,
+NOT a timing bug — timings/atempo/offset all verified clean): `emphasis` colored every **long** word
+(≥6 chars) statically, so the accent almost never sat on the word being spoken, and `clean_pop` had no
+highlight at all. Fix (`editor_render/src/KineticCaption.tsx`): one invariant for ALL styles — the
+highlighted word is the **most-recently-started word** in the on-screen line (`currentIdx = reduce`),
+so exactly one word is lit, it's the spoken one, and it advances on each `start_s` (no gaps, no
+double-highlights, no length-based coloring). Styles now differ only in reveal/layout: clean_pop
+(reveal + accent), emphasis (+ the spoken word pops 1.12× via transform — no reflow), karaoke (whole
+line, unspoken dim, spoken word accent + lift). Uniform 64px (no static big words) keeps the baseline
+stable. Verified against run 0009's real word timings + audio (accent on commuters→guilt-free→drop-off
+as the voice says them). The no-caption tail when voice < video is left silent (operator choice).
 - **Writing: "commit to one idea."** Director scaffold (v1.1) + creative reviewer (v0.2) now attack the
   feature-list body directly — the body must EXTEND the hook's POV, not pivot to a brochure; a list-y
   body is a reviewer FAIL with a *sharpening* fix. Operator-supplied real transcripts slot into
