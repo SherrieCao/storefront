@@ -17,6 +17,7 @@ const VideoSegment: React.FC<{src: string; trim?: [number, number]; rate?: numbe
   return (
     <OffthreadVideo
       src={staticFile(src)}
+      muted              // the ad's only audio is the VO + music bed — never a clip's own/original sound
       playbackRate={rate ?? 1}
       startFrom={trim ? Math.round(trim[0] * fps) : undefined}
       endAt={trim ? Math.round(trim[1] * fps) : undefined}

@@ -1,4 +1,4 @@
-# Shot Agent Scaffold (shot-agent-v0.1)
+# Shot Agent Scaffold (shot-agent-v0.2 — judge calibrated: intricate detail ≠ warping)
 
 > The Shot Agent is the per-shot QUALITY GATE for generated video. For each `seedance_shot` segment it
 > runs an inner loop: compose a single-shot prompt → generate (Seedance, silent) → JUDGE the rendered
@@ -32,6 +32,14 @@ realize. Decide whether the clip is USABLE as-is in a finished ad.
 - PASS clips that are clean and on-intent even if not cinematically perfect (authentic/lo-fi is fine;
   we are not chasing gloss).
 - Don't nitpick framing, mild softness, or natural imperfection. Reserve failure for real problems.
+- **Intricate detail is NOT warping (read this twice for nail art / patterns / jewelry / textured
+  food).** Complex, high-detail subjects under a camera move look busy but are usually FINE. Only fail
+  for "warping/morphing/melting/temporal instability" when an object's SHAPE, STRUCTURE, or COUNT
+  ACTUALLY changes frame-to-frame — a flower becomes a different flower, fingers merge or change count,
+  edges dissolve into each other. Do NOT label sharp fine detail, rich texture, ornate patterns,
+  parallax, or natural motion blur as warping. If the subject is detailed but its structure stays
+  stable across frames, **PASS** — a real false-flag here (operator-confirmed) wrongly killed a good
+  nail-art shot. When genuinely unsure on a detailed-but-stable clip, lean PASS, not fail.
 - Be specific in `reasons` — they are fed verbatim into the NEXT attempt's prompt, so name the exact
   defect ("left hand has 6 fingers", "dog's face morphs at ~2s", "subject drifts to a different dog").
 

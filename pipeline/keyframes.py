@@ -76,12 +76,14 @@ def run_keyframes(run: Run, brief: dict[str, Any], inventory: dict[str, Any],
 
 
 def _shot_prompt(seg: dict[str, Any], mood: str) -> str:
+    # A keyframe is a STILL start frame; MOTION (seg["action"]) is Seedance's job downstream. Putting a
+    # motion verb here ("fingers tilt to show texture") asks an image model to depict motion on a still
+    # and made Nano Banana refuse (no_media) on detail-heavy macros — so we describe the SCENE, not the
+    # action.
     intent = seg.get("intent", "")
-    action = seg.get("action", "")
-    camera = seg.get("camera", "")
-    base = f"A start frame for a short ad shot: {intent}. {action}. {('Mood: ' + mood + '. ') if mood else ''}"
+    base = f"A clean, still start frame for a short ad shot: {intent}. {('Mood: ' + mood + '. ') if mood else ''}"
     if seg.get("asset_ref", "").startswith("@Image"):
-        base = ("Reframe and clean up the attached real photo into a polished 9:16 start frame, "
+        base = ("Reframe and clean up the attached real photo into a polished 9:16 still frame, "
                 "keeping the EXACT same subject(s) and setting (preserve identity). " + base)
     return base + _STYLE_SUFFIX
 
@@ -99,22 +101,37 @@ def _make_keyframe(run: Run, mode: str, prompt: str, image_urls: list[str], dst:
         _stub_keyframe(mode, image_urls, dst)
         run.log(f"Keyframes: STUB {Path(dst).name} ({mode})")
         return
-    budget.check_ceiling(run, budget.keyframe_image(1), "keyframes")
     import fal_client
-    if image_urls:  # generate_from_real / moodboard -> /edit with real photos as references
-        urls = [fal_client.upload_file(p) for p in image_urls]
-        res = fal_client.subscribe(config.MODEL_ROUTER["keyframe_edit"],
-                                   arguments={"prompt": prompt, "image_urls": urls,
-                                              "aspect_ratio": config.ASPECT_RATIO,
-                                              "num_images": 1, "seed": seed}, with_logs=False)
-    else:           # generate -> text-to-image
-        res = fal_client.subscribe(config.MODEL_ROUTER["keyframe"],
-                                   arguments={"prompt": prompt, "aspect_ratio": config.ASPECT_RATIO,
-                                              "num_images": 1, "seed": seed}, with_logs=False)
-    run.add_cost("keyframes", config.NANO_BANANA_COST_PER_IMAGE)
-    url = res["images"][0]["url"]
-    urllib.request.urlretrieve(url, dst)
-    run.trace({"step": "keyframes", "type": "fal_output", "mode": mode, "url": url})
+    urls = [fal_client.upload_file(p) for p in image_urls] if image_urls else []
+    # Nano Banana intermittently returns no_media_generated for a given (prompt, image, seed); the result
+    # is DETERMINISTIC per seed, so a plain retry would repeat it — vary the seed each attempt. If it
+    # still won't generate, fall back to the real photo rather than killing the whole run (we already
+    # have it for generate_from_real / moodboard); a flat generate falls back to a placeholder frame.
+    for attempt in range(3):
+        budget.check_ceiling(run, budget.keyframe_image(1), "keyframes")
+        try:
+            s = seed + attempt * 1009
+            if urls:        # generate_from_real / moodboard -> /edit with real photos as references
+                res = fal_client.subscribe(config.MODEL_ROUTER["keyframe_edit"],
+                                           arguments={"prompt": prompt, "image_urls": urls,
+                                                      "aspect_ratio": config.ASPECT_RATIO,
+                                                      "num_images": 1, "seed": s}, with_logs=False)
+            else:           # generate -> text-to-image
+                res = fal_client.subscribe(config.MODEL_ROUTER["keyframe"],
+                                           arguments={"prompt": prompt, "aspect_ratio": config.ASPECT_RATIO,
+                                                      "num_images": 1, "seed": s}, with_logs=False)
+            run.add_cost("keyframes", config.NANO_BANANA_COST_PER_IMAGE)
+            url = res["images"][0]["url"]
+            urllib.request.urlretrieve(url, dst)
+            run.trace({"step": "keyframes", "type": "fal_output", "mode": mode, "url": url, "attempt": attempt + 1})
+            return
+        except Exception as e:
+            run.log(f"Keyframes: {Path(dst).name} attempt {attempt + 1}/3 failed ({str(e)[:70]}) — "
+                    f"{'retrying with a new seed' if attempt < 2 else 'falling back to the real photo'}")
+    # exhausted retries: graceful fallback (real photo if we have one, else placeholder) — never block the run
+    run.log(f"[OPERATOR ACTION] keyframe {Path(dst).name} ({mode}) wouldn't generate after 3 tries — "
+            f"using the real photo/placeholder so the run continues.")
+    _stub_keyframe(mode, image_urls, dst)
 
 
 def _stub_keyframe(mode: str, image_urls: list[str], dst: str) -> None:
