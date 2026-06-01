@@ -2,7 +2,7 @@
 
 > This file is read automatically by Claude Code every session. It defines what to build NOW.
 > Read alongside `WHY.md` (project purpose + quality bar) and `DECISIONS.md` (key choices + why).
-> Detailed build instructions are in `SPEC_multigen_rearchitecture.md`.
+> Detailed build instructions are in `docs/Specs/SPEC_multigen_rearchitecture.md`.
 > The previous single-call architecture is preserved in `_reference/old_pipeline/` for reference
 > only — do not modify, do not import from. Reuse PATTERNS, not code.
 
@@ -169,7 +169,7 @@ Director or Concept brain. Use Gemini Pro for understanding/direction; Seedance 
 ---
 
 ## Build order (incremental, with acceptance checks per stage)
-Follow `SPEC_multigen_rearchitecture.md` step by step. Suggested order:
+Follow `docs/Specs/SPEC_multigen_rearchitecture.md` step by step. Suggested order:
 0. Pre-build spikes (above). Block on findings.
 1. Repo scaffolding: copy patterns from `_reference/` (tracing, agent loop, errors, run-dir).
 2. Cost ceiling enforcement (`pipeline/budget.py`) — wire it in early; check on every paid call.
