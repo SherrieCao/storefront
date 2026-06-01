@@ -69,8 +69,9 @@ def run_director(run: Run, inventory: dict[str, Any], concept: dict[str, Any] | 
             stub=lambda: (_stub_director(inventory), "STUB thinking: no GEMINI_API_KEY set", 0, 0))
         return _validate(parse_json(raw)), thinking
 
-    # self-correcting critic loop: produce -> review (4 lenses) -> regenerate with feedback
-    fb, brief, thinking, verdict, attempts = None, None, None, {}, []
+    # self-correcting critic loop: produce -> review (4 lenses) + deterministic guards -> regenerate.
+    # Keep the BEST attempt (a passing one if any, else the highest-scoring) — not just the last.
+    fb, brief, thinking, verdict, attempts, cands = None, None, None, {}, [], []
     for attempt in range(1, config.MAX_CREATIVE_RETRIES + 1):
         brief, thinking = _produce(fb)
         if brief is None:                       # invalid/empty brief — treat as a fail, regenerate
@@ -84,21 +85,27 @@ def run_director(run: Run, inventory: dict[str, Any], concept: dict[str, Any] | 
         # voice coverage + perspective (deprioritize 1st-person on third-party-shot assets).
         pace_fb = _pacing_feedback(run, brief, inventory)
         mood_fb = _moodboard_feedback(run, brief, inventory)
+        clip_fb = _clip_reuse_feedback(run, brief, inventory)
         cov_fb = _voice_coverage_feedback(run, brief)
         persp_fb = _perspective_feedback(run, brief)
-        passed = verdict["pass"] and not pace_fb and not mood_fb and not cov_fb and not persp_fb
+        passed = (verdict["pass"] and not pace_fb and not mood_fb and not clip_fb and not cov_fb
+                  and not persp_fb)
         lenses = (list(verdict["failed_lenses"]) + (["pacing_too_slow"] if pace_fb else [])
-                  + (["moodboard_reuse"] if mood_fb else []) + (["voice_undercovers"] if cov_fb else [])
+                  + (["moodboard_reuse"] if mood_fb else []) + (["clip_reuse"] if clip_fb else [])
+                  + (["voice_undercovers"] if cov_fb else [])
                   + (["first_person_mismatch"] if persp_fb else []))
         attempts.append({"attempt": attempt, "passed": passed, "scores": verdict["scores"],
                          "failed_lenses": lenses, "improvement": verdict["improvement"]})
+        cands.append((passed, _mean_score(verdict["scores"]), brief, thinking, verdict))
         if passed:
             break
         fb = "  ".join(p for p in (verdict["improvement"] if not verdict["pass"] else "",
-                                   pace_fb or "", mood_fb or "", cov_fb or "", persp_fb or "") if p)
+                                   pace_fb or "", mood_fb or "", clip_fb or "", cov_fb or "",
+                                   persp_fb or "") if p)
         run.log(f"Director: attempt {attempt} regenerating ({lenses})")
-    if brief is None:
+    if not cands:
         raise RuntimeError("Director returned an empty/invalid brief after retries")
+    _, _, brief, thinking, verdict = max([c for c in cands if c[0]] or cands, key=lambda c: c[1])
 
     brief["_review"] = {"passed": verdict.get("pass", True), "scores": verdict.get("scores", {}),
                         "failed_lenses": verdict.get("failed_lenses", []),
@@ -258,6 +265,45 @@ def _perspective_feedback(run: Run, brief: dict[str, Any]) -> str | None:
             "exception.)")
 
 
+def _clip_reuse_feedback(run: Run, brief: dict[str, Any], inventory: dict[str, Any]) -> str | None:
+    """Guard against a repetitive showcase from the VIDEO side: the same source clip shown over and over
+    (e.g. pinkhair.mp4 in 3 beats) reads as looping. Flags when one @Video source backs >2 real_clip
+    beats OR two same-source real_clips sit back-to-back. Returns regen feedback; None if clean. (Video
+    analog of _moodboard_feedback — different trims of one source still count as the same footage.)"""
+    from collections import Counter
+    segs = brief.get("segments", [])
+    rc = [s for s in segs if s.get("type") == "real_clip" and s.get("clip_ref")]
+    if len(rc) < 2:
+        return None
+    cap = 2
+    counts = Counter(str(s.get("clip_ref")) for s in rc)
+    over = sorted(r for r, c in counts.items() if c > cap)
+    full = sorted(segs, key=lambda s: s.get("n", 0))
+    btb = sorted({str(a.get("clip_ref")) for a, b in zip(full, full[1:])
+                  if a.get("type") == "real_clip" and b.get("type") == "real_clip"
+                  and a.get("clip_ref") and a.get("clip_ref") == b.get("clip_ref")})
+    vids = len([v for v in inventory.get("videos", []) if v.get("usable_as_reference")])
+    photos = len([a for a in inventory.get("images", []) if a.get("recoverable")])
+    run.log(f"Director: clip-reuse check — sources {dict(counts)}, over-cap {over}, back-to-back {btb}")
+    if not over and not btb:
+        return None
+    parts = []
+    if over:
+        parts.append(f"{', '.join(over)} used in >2 beats")
+    if btb:
+        parts.append(f"{', '.join(btb)} repeats back-to-back")
+    return (f"REPETITIVE FOOTAGE: {'; '.join(parts)} — the same clip shown over and over reads as "
+            f"repetitive/looping. Use each @Video source in AT MOST 2 beats, and NEVER two same-source "
+            f"beats in a row. You have {vids} video(s) + {photos} photo(s): vary the sources, interleave "
+            f"with real-photo (moodboard) or seedance beats, or cut to fewer real_clips. (Different trims "
+            f"of one source still count as the same footage.)")
+
+
+def _mean_score(scores: dict) -> float:
+    vals = [float(v) for v in (scores or {}).values() if isinstance(v, (int, float))]
+    return sum(vals) / len(vals) if vals else 0.0
+
+
 def _type_counts(segs: list[dict]) -> dict[str, int]:
     out: dict[str, int] = {}
     for s in segs:
@@ -276,6 +322,8 @@ def _asset_summary(inv: dict) -> list[dict]:
         row = {"ref": tok, "file": Path(p).name, "kind": a.get("type"), "quality": a.get("note")}
         if a.get("type") == "image":
             row["remediation"] = a.get("remediation", [])
+            if a.get("role"):
+                row["role"] = a["role"]          # before/after (operator filename label) — see hard rules
         elif a.get("type") == "video":
             row["length_s"] = a.get("duration_s")   # full source; real_clip trim_s picks the window
         out.append(row)

@@ -22,6 +22,11 @@ CONCEPT_FILE = "01_concept.json"
 RESEARCH_FILE = "01_research.json"
 
 
+def _mean_score(scores: dict) -> float:
+    vals = [float(v) for v in (scores or {}).values() if isinstance(v, (int, float))]
+    return sum(vals) / len(vals) if vals else 0.0
+
+
 def run_concept(run: Run, inventory: dict[str, Any], *, use_cache: bool = False,
                 feedback: str | None = None) -> dict[str, Any]:
     cache = run.dir / CONCEPT_FILE
@@ -67,17 +72,20 @@ def run_concept(run: Run, inventory: dict[str, Any], *, use_cache: bool = False,
                      int((time.time() - t0) * 1000), thinking)
         return parse_json(raw), thinking
 
-    # self-correcting critic loop: produce -> review (4 lenses) -> regenerate with feedback
-    fb, concept, thinking, verdict, attempts = feedback, {}, None, {}, []
+    # self-correcting critic loop: produce -> review (4 lenses) -> regenerate. Keep the BEST attempt
+    # (a passing one if any, else the highest-scoring) — not just the last.
+    fb, concept, thinking, verdict, attempts, cands = feedback, {}, None, {}, [], []
     for attempt in range(1, config.MAX_CREATIVE_RETRIES + 1):
         concept, thinking = _produce(fb)
         verdict = reviewers.review(run, "concept", concept, ctx)
         attempts.append({"attempt": attempt, "passed": verdict["pass"], "scores": verdict["scores"],
                          "failed_lenses": verdict["failed_lenses"], "improvement": verdict["improvement"]})
+        cands.append((bool(verdict["pass"]), _mean_score(verdict.get("scores", {})), concept, thinking, verdict))
         if verdict["pass"]:
             break
         fb = verdict["improvement"]
         run.log(f"Concept: review attempt {attempt} FAIL ({verdict['failed_lenses']}) — regenerating")
+    _, _, concept, thinking, verdict = max([c for c in cands if c[0]] or cands, key=lambda c: c[1])
 
     concept["_review"] = {"passed": verdict.get("pass", True), "scores": verdict.get("scores", {}),
                           "failed_lenses": verdict.get("failed_lenses", []),

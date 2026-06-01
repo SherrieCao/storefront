@@ -14,7 +14,7 @@ the master clock and the voice fits it — not the reverse (which caused run 000
 NOT for: generating/fixing shots (Shot Agent) or creative concept (Director).
 """
 from __future__ import annotations
-import json, shutil, subprocess
+import json, re, shutil, subprocess
 from pathlib import Path
 from typing import Any
 from . import config
@@ -63,17 +63,25 @@ def plan_timeline(run: Run, brief: dict[str, Any], shots_result: dict[str, Any],
         "endings_used_past_runs": history.director_ending_hint(run.business) or [],
     }
 
-    # self-correcting editor critic loop: plan -> review (editing craft) -> regenerate with feedback
-    fb, agent, verdict, attempts = None, {}, {}, []
+    # self-correcting editor critic loop: plan -> review -> regenerate. Keep the BEST attempt — a parse
+    # failure can drop _editor_agent to a weak fallback, so the LAST attempt isn't necessarily the best.
+    fb, attempts, cands, last_valid = None, [], [], None
     for attempt in range(1, config.MAX_CREATIVE_RETRIES + 1):
-        agent = _editor_agent(run, usable, brief, limits, feedback=fb)
+        agent = _editor_agent(run, usable, brief, limits, feedback=fb, prev_valid=last_valid)
+        if agent.get("segments") and not agent.get("_fallback"):
+            last_valid = agent                       # remember the last good LLM plan to reuse on a parse-fail
         verdict = reviewers.review(run, "edit", {**agent, "ending_context": ending_context}, ctx)
         attempts.append({"attempt": attempt, "passed": verdict["pass"], "scores": verdict["scores"],
                          "failed_lenses": verdict["failed_lenses"], "improvement": verdict["improvement"]})
+        cands.append((bool(verdict["pass"]), _mean_score(verdict.get("scores", {})), agent, verdict))
         if verdict["pass"]:
             break
         fb = verdict["improvement"]
         run.log(f"Editor: edit-review attempt {attempt} FAIL ({verdict['failed_lenses']}) — replanning")
+    agent, verdict = _pick_best(cands)               # accept-BEST (not accept-last) + flag
+    if not verdict.get("pass"):
+        run.log(f"Editor: no attempt passed in {len(cands)} — shipping best "
+                f"(score {_mean_score(verdict.get('scores', {})):.2f})")
 
     segs, sources = _build_segments(agent, by_n, clips, keyframes_map, inventory, limits)
     _fit_to_total(run, segs, target)                        # clamp + reconcile durations to target
@@ -221,11 +229,25 @@ def _video_limits(usable: list[dict], clips: dict, inventory: dict) -> dict[str,
     return limits
 
 
+def _mean_score(scores: dict) -> float:
+    vals = [float(v) for v in (scores or {}).values() if isinstance(v, (int, float))]
+    return sum(vals) / len(vals) if vals else 0.0
+
+
+def _pick_best(cands: list[tuple]) -> tuple[dict, dict]:
+    """From [(passed, mean_score, agent, verdict), ...] pick the best: a passing attempt if any, else the
+    highest mean-score one. Prevents a crashed/weak later attempt from overwriting a strong earlier one."""
+    pool = [c for c in cands if c[0]] or cands
+    best = max(pool, key=lambda c: c[1])
+    return best[2], best[3]
+
+
 def _editor_agent(run: Run, usable: list[dict], brief: dict, limits: dict[str, float],
-                  feedback: str | None = None) -> dict[str, Any]:
+                  feedback: str | None = None, prev_valid: dict | None = None) -> dict[str, Any]:
     """Editor Agent: order + per-segment duration + transitions + caption_style (NOT caption text —
     that comes from the voice word timestamps). Durations enforced to target afterward; this is the
-    creative pass for pacing. `feedback` (from the edit reviewer) is baked into the regen. Stub offline."""
+    creative pass for pacing. `feedback` (from the edit reviewer) is baked into the regen. On a parse
+    failure, reuse the prior valid plan (`prev_valid`) rather than the deterministic fallback. Stub offline."""
     payload = {
         "target_duration_s": brief.get("total_duration_s"),
         "segments": [{"n": s.get("n"), "type": s.get("type"), "intent": s.get("intent", ""),
@@ -244,16 +266,44 @@ def _editor_agent(run: Run, usable: list[dict], brief: dict, limits: dict[str, f
     log_llm_call(run, "editor", config.MODEL_ROUTER["editor_agent"], scaffold[:300] + "...",
                  raw, in_tok, out_tok, 0, thinking)
     plan = parse_json(raw)
-    if not plan.get("segments"):
-        plan = _fallback_plan(usable)
+    if not plan.get("segments"):                     # harden: pull the first {...} object out of any prose
+        plan = _extract_json_object(raw) or plan
+    if not plan.get("segments"):                     # still nothing → reuse the last good plan, else fallback
+        plan = prev_valid or _fallback_plan(usable)
     return plan
 
 
+def _extract_json_object(raw: str) -> dict[str, Any] | None:
+    """Best-effort recovery when the model wraps its JSON in prose/fences: grab the outermost {...}."""
+    m = re.search(r"\{.*\}", raw or "", re.S)
+    if not m:
+        return None
+    try:
+        obj = json.loads(m.group(0))
+        return obj if isinstance(obj, dict) else None
+    except Exception:
+        return None
+
+
+# Motion cycle so even the fallback enlivens video beats (a motionless fallback auto-fails the reviewer).
+_FALLBACK_MOTIONS = ["punch_in", "parallax", "scale_breath", "drift"]
+
+
 def _fallback_plan(usable: list[dict]) -> dict[str, Any]:
-    """Deterministic plan: Director order + durations, hard cuts. _fit_to_total reconciles lengths."""
-    return {"segments": [{"n": s.get("n"), "duration_s": float(s.get("duration_s") or 4),
-                          "transition_in": "hard_cut"} for s in usable],
-            "reasoning": "Deterministic fallback: Director order + durations, hard cuts."}
+    """Deterministic plan used only if the LLM truly can't produce one. Not catastrophic: alternates
+    beat lengths + adds motion on video beats so it isn't an automatic rhythm/motion/template_feel fail.
+    _fit_to_total + _snap_to_beats reconcile lengths afterward."""
+    segs = []
+    for i, s in enumerate(usable):
+        d = float(s.get("duration_s") or 2.0) * (1.15 if i % 2 else 0.88)   # break metronomic uniformity
+        seg = {"n": s.get("n"), "duration_s": round(max(0.8, d), 2),
+               "transition_in": "hard_cut" if (i == 0 or i % 4) else "crossfade"}
+        if s.get("type") in ("seedance_shot", "real_clip"):
+            seg["motion"] = _FALLBACK_MOTIONS[i % len(_FALLBACK_MOTIONS)]
+        segs.append(seg)
+    return {"segments": segs, "caption_style": "bold_center",
+            "reasoning": "Deterministic fallback: varied beat lengths + motion on video beats.",
+            "_fallback": True}
 
 
 def _build_segments(agent: dict, by_n: dict, clips: dict, keyframes_map: dict,
@@ -332,13 +382,17 @@ def _card_bg(inventory: dict, used_refs: set[str]) -> str | None:
     """A real hero photo to back a card (rich, on-brand look). Prefer an @Image NOT already shown on
     screen, so the card doesn't repeat a frame (e.g. the moodboard composition or a shot seed). Falls
     back to any usable photo, else None (the card uses a palette gradient)."""
+    from .triage import role_from_name
     images = [(tok, resolve_ref(inventory, tok)) for tok, _ in _usable_assets(inventory)
               if tok.startswith("@Image")]
     images = [(tok, p) for tok, p in images if p and Path(p).exists()]
+    # A "before" photo is a problem-state image — never the card hero. Exclude it (a palette gradient
+    # is better than a before-shot behind the CTA). Filename basename survives enhancement.
+    images = [(tok, p) for tok, p in images if role_from_name(Path(p).name) != "before"]
     for tok, p in images:                # first an unused photo
         if tok not in used_refs:
             return p
-    return images[0][1] if images else None   # else any photo (better than a flat card)
+    return images[0][1] if images else None   # else any non-before photo (better than a flat card)
 
 
 def _fit_to_total(run: Run, segs: list[dict], target: float) -> None:

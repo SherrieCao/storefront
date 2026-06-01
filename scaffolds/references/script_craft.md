@@ -22,15 +22,26 @@ Use **first person** ("I…", "my…") ONLY when the assets are genuinely self-s
 over footage someone else clearly shot, first-person reads as fake. (A real attributed review quote is the
 one exception.) Most SMB submissions are third-party-shot, so 2nd/3rd person is almost always right.
 
-## Hook patterns (open with one; combine two for power)
+## Lead with the BENEFIT / OUTCOME — never the problem (all verticals)
+The hook and the script LEAD with the desirable result the customer wants — not the pain, fear, or
+risk. Frame value as the **outcome you get**, never as the **absence of a bad thing**:
+- ✅ "Vivid color that stays soft and healthy." ❌ "Color without frying your hair off."
+- ✅ "Drop your dog off and get midday photos of the happiest hour of their day." ❌ "Tired of feeling
+  guilty when you drop your dog off?"
+A pain point may be *touched* briefly, but only in service of the outcome — it is NEVER the lead and
+never the whole hook. A fear/problem/negative LEAD is a defect (it plants the bad feeling and reads as
+desperate). This holds for every vertical.
+
+## Hook patterns (open with one; combine two for power) — all OUTCOME-framed
+- **Result-first / before-after:** open on the payoff or the transformation, then explain. (Strongest.)
 - **Second-person / POV:** "POV: you finally found a [thing] that [benefit]." / "This is your sign to…"
 - **Third-person showcase:** open on the work itself / the room / the result and let it speak.
-- **Result-first / before-after:** open on the payoff or the transformation, then explain.
-- **Relatable problem:** name the viewer's exact pain in their words ("Ever drop your dog off and feel
-  guilty all day?").
 - **Specific-detail / local-recognition:** a true, particular fact ("Right off the 101 exit…", "We
   proof our dough at 5am"). Specificity > superlatives.
-- **Curiosity / educational:** "The mistake everyone makes with [X]…" / "Before you book a [X], watch this."
+- **Aspiration / identity:** the version of the viewer's day/look/life this delivers ("the hair you
+  keep getting stopped about").
+- **Curiosity / educational:** "Here's how we get [the desirable result]…" — framed as the secret to
+  the OUTCOME, not "the mistake everyone makes."
 - **Mechanic anchors (from hooks.md):** newness, price, urgency, offer beat clever for local SMBs.
 
 ## Voice quirks that read as real (vs. ad-voice)

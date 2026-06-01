@@ -94,8 +94,10 @@ Not templates — patterns. The director adapts or invents.
   Works because it signals this is for THEM, not a mass audience.
 - The result-first hook: Show/say the outcome before explaining what the business does.
   "Your floors haven't looked like this in years." → cleaning service.
-- The relatable problem hook: Name the frustration before offering the relief.
-  "Tired of fighting your hair every morning?" → salon.
+- The outcome/aspiration hook (PREFERRED — lead with the result the customer wants):
+  "The hair you keep getting stopped about." → salon. Lead with the desirable outcome, NOT the
+  frustration — naming the pain ("tired of fighting your hair") plants the bad feeling and reads as
+  desperate. Frame value as the result you get, never the absence of a bad thing.
 - The scarcity/timing hook: "This weekend only" / "Last spots this month" / "Fresh until noon."
   Works for food businesses and appointment-based services.
 - The sensory hook: Lead with a visceral sensory detail that bypasses conscious processing.

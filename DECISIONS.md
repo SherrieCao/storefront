@@ -87,6 +87,9 @@ in the brief is the source of truth — no inferred detection. The reason: a heu
 sometimes thinks two unrelated photos look similar would let the model pick a format the assets
 can't support, and the model would then construct a fake before/after from generated footage. The
 hard gate makes this impossible by design.
+> **AMENDED (D37):** explicit `before_`/`after_` FILENAME prefixes now also count as an operator
+> statement and unlock the gate (≥1 of each). This is still an explicit operator LABEL, not pixel
+> inference — the operator named the files. Pixel-content inference remains forbidden.
 
 ## D12. Format menu is the Motion guide's 8, with availability gates
 Director picks ONE of: testimonial, demo, listicle, montage, split_screen, behind_the_scenes,
@@ -407,3 +410,28 @@ attributed review quote is the one exception. Creative reviewer (v0.5) enforces 
 `asset_perspective` defaults to `third_party` when omitted (the safe SMB assumption, keeps the guard
 active). Verified: unit guard (6 cases), reviewer (1st-person FAILs / 2nd passes), live Director on Conway
 → `third_party` / `second` / fully 2nd-person "POV: you walk in…" script (vs the old first-person).
+
+## D37 (SHIPPED — four fixes from the Hue_Salon run 0020)
+- **Benefit/outcome-led narrative (ALL verticals).** Operator: lead with the desirable result, never the
+  problem/fear, and never "X *without* the bad thing" ("vivid color that stays healthy" > "color without
+  frying it off"). Reframed the `script_craft.md` "relatable problem" hook → benefit/outcome hook;
+  rewrote `smb_verticals.md` "name the frustration"; added a concept gate + a director script rule;
+  creative_reviewer (v0.6) FAILs a problem/fear/negative LEAD. A pain may be touched only in service of
+  the outcome.
+- **Editor critic loop: accept-BEST, not accept-last.** Root cause of repeated editor failures: a parse
+  failure dropped `_editor_agent` to a motion-less `_fallback_plan`, and the loop shipped the LAST
+  attempt — so a crashed fallback overwrote a good attempt 1. Fix (`editor.py`): track every attempt and
+  ship the best (passing if any, else highest mean-score) via `_pick_best`; harden parsing
+  (`_extract_json_object` pulls the `{...}` out of prose) + reuse the prior valid plan on parse-fail; and
+  `_fallback_plan` now carries varied beat lengths + motion so even a true fallback isn't an auto-fail.
+  Same accept-best applied to the concept + director loops. The 7-lens reviewer bar was NOT loosened.
+- **Clip-reuse guard (`director.py` `_clip_reuse_feedback`).** Video analog of the moodboard photo-reuse
+  guard: a single `@Video` source may back at most 2 real_clip beats and never two back-to-back
+  (pinkhair.mp4 had appeared in 3 beats). Folded into the self-correct loop. Also relieves the editor's
+  contrast/template_feel failures.
+- **before/after filename roles (amends D11 — see above).** `triage.py` tags each image with a `role`
+  from `before_`/`after_` filename prefixes and unlocks the before/after format when ≥1 of each exists;
+  `_asset_summary` surfaces the role; `creative_director.md` forbids a `before` photo as hero / card /
+  standalone showcase (use only paired as a transformation) and promotes the before→after reveal;
+  `editor.py` `_card_bg` excludes `before` photos from the card hero (a "before" had landed behind the
+  CTA card).

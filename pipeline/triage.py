@@ -144,13 +144,28 @@ def _load_brief(snap, fallback_business: str) -> tuple[str, str, str]:
     return fallback_business, "", txt
 
 
-def parse_before_after(brief: str) -> dict[str, Any]:
-    """Read explicit before/after statements from the brief (operator's words = truth).
+def role_from_name(name: str) -> str | None:
+    """An EXPLICIT before/after label the operator put in the filename (e.g. before_1.jpg / after-2.png).
+    Returns "before" | "after" | None. This is an operator statement, not inference about pixels."""
+    stem = Path(name).stem.lower()
+    if stem.startswith("before") and (len(stem) == 6 or stem[6] in "_- 0123456789"):
+        return "before"
+    if stem.startswith("after") and (len(stem) == 5 or stem[5] in "_- 0123456789"):
+        return "after"
+    return None
 
-    Returns: {has_before_after: bool, source}. Heuristic is NOT used to unlock the
-    gate — only an explicit operator statement does.
-    NOT for: inferring before/after from the images themselves.
+
+def parse_before_after(brief: str, image_names: list[str] | None = None) -> dict[str, Any]:
+    """Unlock the before/after format ONLY on an EXPLICIT operator statement (D11, amended): either the
+    brief text says before+after in plain language, OR the operator labeled files with before_/after_
+    prefixes (≥1 of each). Filename prefixes are an explicit label, not inference about the pixels.
+    Returns {has_before_after, source}.
+    NOT for: inferring before/after from image CONTENT.
     """
+    roles = [role_from_name(n) for n in (image_names or [])]
+    if "before" in roles and "after" in roles:
+        return {"has_before_after": True, "source": "filenames",
+                "note": "operator labeled before_/after_ files (≥1 of each)"}
     if brief:
         bl = brief.lower()
         if "before" in bl and "after" in bl:
@@ -215,10 +230,12 @@ def run_triage(run: Run, input_dir: Path, *, use_cache: bool = False) -> dict[st
 
     photo_paths = [p for p in images if str(p) != logo]
     img_assessments = [assess_image(str(p)) for p in photo_paths]
+    for a, p in zip(img_assessments, photo_paths):
+        a["role"] = role_from_name(p.name)        # before/after from the operator's filename, or None
     vid_assessments = [assess_video(str(p)) for p in videos]
 
     biz_name, location, brief = _load_brief(snap, run.business)
-    ba = parse_before_after(brief)
+    ba = parse_before_after(brief, [p.name for p in photo_paths])
 
     inventory = {
         "business": biz_name, "location": location, "brief": brief,
