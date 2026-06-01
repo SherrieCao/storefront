@@ -7,7 +7,7 @@
 
 The bar isn't "best production or not." The bar is the only one a small-business owner cares about:
 
-> **"Would this bring me more customers?"**
+> **"Would this bring me more traffic?"**
 
 Phone calls. Walk-ins. Bookings. That's the product.
 
