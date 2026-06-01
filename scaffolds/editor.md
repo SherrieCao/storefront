@@ -34,10 +34,15 @@
    - `dip_to_black` — a beat of black before the next idea; use ONCE to mark a turn (problem→solution).
    - `slide` / `whip` — segment drives in from the side (`whip` adds motion blur — high energy, sparingly).
    - `zoom` — punch out of a scale-up; good landing INTO a card/CTA.
+   - `speed_ramp_in` — clip rushes in and snaps to rest (a "whoosh into place"); good on a hype/action beat.
+   - `scale_reveal` — incoming reveals over the prior, scaling down into place (overlaps the prior segment).
+   - `light_leak` — an amber light sweep across the cut; a warm flourish — AT MOST ONCE per ad.
    Don't overuse the flashy ones — 1–2 accents in a 15–30s ad; hard cuts carry the rest.
 3. **Motion** (video segments only, optional `motion`): `punch_in` (slow scale push) | `parallax` (slow
-   drift/pan) | `handheld_jitter` (subtle per-frame micro-shake — makes too-perfectly-locked/static
-   footage read as real phone footage, not AI). Use on otherwise-still footage; omit if it already moves.
+   horizontal drift) | `drift` (slow diagonal camera drift) | `scale_breath` (barely-there 1.0→1.03→1.0
+   pulse that keeps a held shot alive) | `handheld_jitter` (subtle per-frame micro-shake — makes
+   too-perfectly-locked/static footage read as real phone footage, not AI). Use on otherwise-still
+   footage; omit if it already moves.
 4. **Overlays** (optional `overlay`, any segment): a motion graphic ON TOP of the footage.
    - `lower_third` — an animated name/handle/location chip (e.g. "@carolsdogdaycare" / "Open 7 days").
    - `badge` — a popped corner sticker for a single punchy fact ("★4.9", "20% OFF", "WALK-INS OK"),
@@ -70,8 +75,8 @@ must SERVE the beat; gratuitous effects that fight the footage score LOW.
 
 ## Hard rules
 - Video `duration_s` ≤ `max_s`; video beats ~1.2–1.8s; `card`/`moodboard` ≤~3s; durations sum ≈ `target_duration_s`.
-- `transition_in` ∈ {hard_cut, crossfade, dip_to_black, slide, whip, zoom}; first segment `hard_cut`.
-- `motion` ∈ {punch_in, parallax, handheld_jitter} (video only, optional). `caption_style` ∈ {bold_center, minimal_lower, handwritten, sparse_keyword}.
+- `transition_in` ∈ {hard_cut, crossfade, dip_to_black, slide, whip, zoom, speed_ramp_in, scale_reveal, light_leak}; first segment `hard_cut`; `light_leak` at most once.
+- `motion` ∈ {punch_in, parallax, drift, scale_breath, handheld_jitter} (video only, optional). `caption_style` ∈ {bold_center, minimal_lower, handwritten, sparse_keyword}.
 - card `animation` ∈ {scale_pop, slide_in, fade}.
 - `overlay` ∈ {kind: lower_third|badge, text, position?, accent?} — optional, ≤2 total, short text.
 - Reference ONLY segment `n`s present in the input. Do NOT write caption text. Output ONLY the JSON below.

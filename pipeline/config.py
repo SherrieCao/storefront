@@ -139,7 +139,7 @@ SCAFFOLD_VERSIONS = {
     "creative_director": "director-v1.7",    # script must cover the video; designed cards
     "prompt_translator": "shot-prompt-v1.1", # anti-AI-tell look: practical light, muted color, handheld
     "shot_agent":        "shot-agent-v0.3",  # judge calibrated; "too polished" soft signal
-    "editor":            "editor-v0.6",      # 4 caption styles (bold_center/minimal_lower/handwritten/sparse_keyword)
+    "editor":            "editor-v0.7",      # +Batch C transitions (speed_ramp_in/scale_reveal/light_leak) + motions (drift/scale_breath)
 }
 
 # ---------------------------------------------------------------------------

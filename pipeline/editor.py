@@ -26,13 +26,17 @@ from . import reviewers                       # edit-plan critic loop
 EDIT_PLAN_FILE = "07_edit_plan.json"
 OUTPUT_FILE = "09_output/final.mp4"
 VOICE_DIR_FIT = "06_voice/voiceover_fit.mp3"
-# Transition vocabulary the Editor Agent may pick from (D4). Only crossfade overlaps; the rest are
-# in-window entrances. MUST match editor_render/src/types.ts Transition + AdComposition TransitionWrap.
-_TRANSITIONS = {"hard_cut", "crossfade", "dip_to_black", "slide", "whip", "zoom"}
-_MOTIONS = {"punch_in", "parallax", "handheld_jitter"}   # kinetic treatment for video segments (D4 + Batch2)
+# Transition vocabulary the Editor Agent may pick from (D4 + design-system Batch C). Overlap
+# transitions reveal over the prior segment (crossfade, scale_reveal); the rest are in-window
+# entrances. MUST match editor_render/src/types.ts Transition + AdComposition TransitionWrap.
+_TRANSITIONS = {"hard_cut", "crossfade", "dip_to_black", "slide", "whip", "zoom",
+                "speed_ramp_in", "scale_reveal", "light_leak"}
+_OVERLAP_TRANSITIONS = {"crossfade", "scale_reveal"}   # start before the prior ends (need overlap window)
+_MOTIONS = {"punch_in", "parallax", "handheld_jitter",   # kinetic treatment for video segments (D4 + Batch2)
+            "scale_breath", "drift"}                      # design-system Batch C: subtle pulse / slow diagonal drift
 _OVERLAY_KINDS = {"lower_third", "badge"}
 _BADGE_POS = {"tl", "tr", "bl", "br"}
-_CROSSFADE_S = 0.4    # MUST match editor_render/src/AdComposition.tsx CROSSFADE_S
+_CROSSFADE_S = 0.3    # MUST match editor_render/src/AdComposition.tsx CROSSFADE_S (Batch C: 0.4->0.3, snappier)
 _MIN_SEG_S = 1.2
 
 
@@ -255,6 +259,7 @@ def _build_segments(agent: dict, by_n: dict, clips: dict, keyframes_map: dict,
     used_refs = {str(d.get("asset_ref", "")) for d in by_n.values()}
     for d in by_n.values():
         used_refs.update(str(x) for x in (d.get("moodboard_assets") or []))
+    light_leak_used = False
     for i, ps in enumerate(agent.get("segments", [])):
         n = str(ps.get("n"))
         d = by_n.get(n)
@@ -264,6 +269,11 @@ def _build_segments(agent: dict, by_n: dict, clips: dict, keyframes_map: dict,
         trans = ps.get("transition_in") if ps.get("transition_in") in _TRANSITIONS else "hard_cut"
         if i == 0:
             trans = "hard_cut"
+        if trans == "light_leak":            # design-system Batch C: at most ONE light leak per ad (a flourish, not a tic)
+            if light_leak_used:
+                trans = "crossfade"
+            else:
+                light_leak_used = True
         seg: dict[str, Any] = {"type": t, "duration_s": max(0.5, float(ps.get("duration_s") or 3)),
                                "transition_in": trans, "_max_s": limits.get(n)}
         ov = _overlay(ps.get("overlay"))                  # lower-third / badge motion graphic (D4)
@@ -361,7 +371,7 @@ def _assign_timestamps(segs: list[dict]) -> float:
     the timeline's real length (what the voice must fit)."""
     cursor = 0.0
     for i, s in enumerate(segs):
-        start = cursor if (i == 0 or s["transition_in"] != "crossfade") else max(0.0, cursor - _CROSSFADE_S)
+        start = cursor if (i == 0 or s["transition_in"] not in _OVERLAP_TRANSITIONS) else max(0.0, cursor - _CROSSFADE_S)
         s["start_s"] = round(start, 2)
         s["end_s"] = round(start + s["duration_s"], 2)
         cursor = s["end_s"]
