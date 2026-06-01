@@ -282,8 +282,11 @@ def _build_segments(agent: dict, by_n: dict, clips: dict, keyframes_map: dict,
         elif t == "moodboard":
             seg["src"] = _stage(sources, f"moodboard_{n}.png", keyframes_map[n]["path"])
         elif t == "card":
-            seg["card_template"] = d.get("card_template", "EndCard")
-            seg["card_text"] = d.get("card_text", "")
+            seg["card_template"] = d.get("card_template", "EndCard")   # legacy alias
+            seg["card_style"] = ps.get("card_style") or d.get("card_style") or "glass"
+            if isinstance(d.get("card_tiers"), dict):
+                seg["card_tiers"] = d["card_tiers"]        # structured tiers (name/tagline/info/cta)
+            seg["card_text"] = d.get("card_text", "")      # legacy flat fallback (name + info)
             seg["card_animation"] = ps.get("animation", "scale_pop")  # editor picks the entrance
             bg = _card_bg(inventory, used_refs)             # photo-backed cards (kill the flat look)
             if bg:

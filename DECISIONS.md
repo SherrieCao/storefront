@@ -327,3 +327,19 @@ creative reviewer already checks the ending; keeps cost/latency down). Director 
 exhausting 2 retries). Editor renders all ending forms already (card; overlay via the D4 lower_third;
 callback/tag/linger leave info off-screen → caption). Verify: do endings actually vary across the next
 several runs?
+
+## D33 (SHIPPED — Remotion design system, Batch A: designed cards + typography)
+From SPEC_remotion_design_system §4 + SPEC_card_typography. The old cards rendered a flat `card_text`
+("A | B | C") in one font/size — placeholder-looking. Rebuilt `templates/Cards.tsx` as a card SYSTEM:
+four distinct STYLES (`glass` translucent panel · `type_only` bold-on-footage · `photo_backed` over a
+dimmed photo · `minimal_bar` accent bar), each rendering up to four TYPOGRAPHIC TIERS — `name` (Inter
+Black, uppercase, tracked) / `tagline` (Caveat handwriting, contrasts the geometric name; a specific
+line, not a slogan) / `info` (Inter Medium, dim) / `cta` (pill | handle | subtle) — with a staggered
+entrance. Real fonts via `@remotion/google-fonts` (Inter + Caveat; added to package.json). Schema:
+`card_style` + structured `card_tiers` (types.ts, editor.py threading, director scaffold v1.6 +
+design_ending realizes a card into tiers). Backward-compat: a flat `card_text` still renders (name +
+info); old `card_template` names alias to a style. **Palette guard kept** (operator's call): accent used
+as TEXT falls back to white when `palette[0]` is too dark (lum ≤ 90), avoiding the grey-palette reversal;
+white text on the dark-backed styles means no live video-luminance detection needed. Verified: all 4
+styles render as distinct designed cards. **Deferred (later batches):** caption system §1 (keep
+white/grey + palette guard), transitions §2, motion §3 expansions, live luminance detection.

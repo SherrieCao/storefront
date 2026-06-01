@@ -3,7 +3,7 @@ import {
   staticFile, useCurrentFrame, useVideoConfig,
 } from 'remotion';
 import {Caption, EditPlan, Segment} from './types';
-import {CARD_TEMPLATES} from './templates/Cards';
+import {Card} from './templates/Cards';
 import {KineticCaption} from './KineticCaption';
 import {OverlayLayer} from './Overlay';
 
@@ -37,12 +37,9 @@ const MoodboardSegment: React.FC<{src: string; durationInFrames: number}> = ({sr
   );
 };
 
-// Card segment -> the template library (templates/Cards.tsx). Photo-backed + palette accents.
-const CardSegment: React.FC<{template?: string; text?: string; bg?: string; palette?: string[]; animation?: string}> =
-  ({template, text, bg, palette, animation}) => {
-  const Card = CARD_TEMPLATES[template ?? 'EndCard'] ?? CARD_TEMPLATES.EndCard;
-  return <Card text={text} bg={bg} palette={palette} animation={animation} />;
-};
+// Card segment -> the card system (templates/Cards.tsx): a card STYLE rendering 4 typographic tiers.
+const CardSegment: React.FC<{style?: string; tiers?: any; template?: string; text?: string;
+  bg?: string; palette?: string[]; animation?: string}> = (p) => <Card {...p} />;
 
 // Punch-in: a slow scale push across the segment (energy on otherwise-static or locked footage).
 const PunchIn: React.FC<{durationInFrames: number; children: React.ReactNode}> = ({durationInFrames, children}) => {
@@ -86,8 +83,8 @@ const renderSegment = (seg: Segment, durationInFrames: number, palette?: string[
     case 'moodboard':
       return <MoodboardSegment src={seg.src!} durationInFrames={durationInFrames} />;
     case 'card':
-      return <CardSegment template={seg.card_template} text={seg.card_text} bg={seg.bg_src}
-                          palette={palette} animation={seg.card_animation} />;
+      return <CardSegment style={seg.card_style} tiers={seg.card_tiers} template={seg.card_template}
+                          text={seg.card_text} bg={seg.bg_src} palette={palette} animation={seg.card_animation} />;
   }
 };
 

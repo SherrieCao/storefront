@@ -11,8 +11,10 @@ export type Segment = {
   playback_rate?: number; // speed-ramp for seedance_shot / real_clip (energy)
   motion?: 'punch_in' | 'parallax' | 'handheld_jitter'; // kinetic treatment for video (Ken Burns is automatic on moodboard)
   overlay?: OverlaySpec; // lower-third / badge motion graphic on top of this segment
-  card_template?: string; // EndCard | PriceTag | LocationPin | OfferBanner | Title
-  card_text?: string;
+  card_template?: string; // legacy: EndCard | PriceTag | LocationPin | OfferBanner | Title (aliased to a style)
+  card_style?: string;    // glass | type_only | photo_backed | minimal_bar
+  card_tiers?: {name?: string; tagline?: string; info?: string; cta?: string; cta_style?: string};
+  card_text?: string;     // legacy flat string ("Name | Location | Book") — still rendered (name + info)
   card_animation?: string; // scale_pop | slide_in | fade
   bg_src?: string; // staticFile name for a card's photo background
   transition_in?: Transition;

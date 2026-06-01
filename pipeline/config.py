@@ -136,7 +136,7 @@ MAX_REGEN_RETRIES = 2
 # ---------------------------------------------------------------------------
 SCAFFOLD_VERSIONS = {
     "concept":           "concept-v0.1",     # anti-AI-tell: human-anchor + local + no-AI-product
-    "creative_director": "director-v1.5",    # anti-AI-tell; Ending Designer tool
+    "creative_director": "director-v1.6",    # designed cards: card_style + 4-tier card_tiers
     "prompt_translator": "shot-prompt-v1.1", # anti-AI-tell look: practical light, muted color, handheld
     "shot_agent":        "shot-agent-v0.3",  # judge calibrated; "too polished" soft signal
     "editor":            "editor-v0.5",      # rhythm profiles; ending-type aware
