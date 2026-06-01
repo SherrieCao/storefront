@@ -75,16 +75,18 @@ def run_director(run: Run, inventory: dict[str, Any], concept: dict[str, Any] | 
             run.log(f"Director: attempt {attempt} produced an invalid brief — regenerating")
             continue
         verdict = reviewers.review(run, "director", brief, ctx)
-        # Deterministic pacing guard (E2): too-slow avg beat + spare assets -> regenerate with MORE,
-        # SHORTER beats. Runs alongside the creative review; logs the metric every attempt.
+        # Deterministic guards (run alongside the creative review): pacing (E2) + moodboard photo reuse.
         pace_fb = _pacing_feedback(run, brief, inventory)
-        passed = verdict["pass"] and not pace_fb
-        lenses = list(verdict["failed_lenses"]) + (["pacing_too_slow"] if pace_fb else [])
+        mood_fb = _moodboard_feedback(run, brief, inventory)
+        passed = verdict["pass"] and not pace_fb and not mood_fb
+        lenses = (list(verdict["failed_lenses"]) + (["pacing_too_slow"] if pace_fb else [])
+                  + (["moodboard_reuse"] if mood_fb else []))
         attempts.append({"attempt": attempt, "passed": passed, "scores": verdict["scores"],
                          "failed_lenses": lenses, "improvement": verdict["improvement"]})
         if passed:
             break
-        fb = "  ".join(p for p in (verdict["improvement"] if not verdict["pass"] else "", pace_fb or "") if p)
+        fb = "  ".join(p for p in (verdict["improvement"] if not verdict["pass"] else "",
+                                   pace_fb or "", mood_fb or "") if p)
         run.log(f"Director: attempt {attempt} regenerating ({lenses})")
     if brief is None:
         raise RuntimeError("Director returned an empty/invalid brief after retries")
@@ -151,6 +153,32 @@ def _pacing_feedback(run: Run, brief: dict[str, Any], inventory: dict[str, Any])
             f"for ~{target_n}+ beats (~1.5–2s each). You have {usable} usable assets; turn more of them "
             f"into distinct short beats (split long holds; add real_clip / moodboard beats). Add MORE, "
             f"SHORTER segments — do NOT pad the existing ones.")
+
+
+def _moodboard_feedback(run: Run, brief: dict[str, Any], inventory: dict[str, Any]) -> str | None:
+    """Guard against a repetitive showcase: when moodboards REUSE the same photos (a photo appears in
+    >1 moodboard), the moodboard frames look samey. Returns regen feedback capping the moodboard count
+    to what the distinct-photo pool supports + demanding distinct photos per moodboard; None if clean.
+    (The majority-real gate can over-produce moodboards on verticals with few photos — e.g. 4 moodboards
+    from 5 photos forces reuse.)"""
+    from collections import Counter
+    mbs = [s for s in brief.get("segments", []) if s.get("type") == "moodboard"]
+    if len(mbs) < 2:
+        return None
+    used = Counter(a for s in mbs for a in (s.get("moodboard_assets") or []))
+    reused = sorted(a for a, c in used.items() if c > 1)
+    if not reused:
+        return None
+    photos = len([a for a in inventory.get("images", []) if a.get("recoverable")])
+    vids = len([v for v in inventory.get("videos", []) if v.get("usable_as_reference")])
+    cap = max(1, photos // 2)
+    run.log(f"Director: moodboard check — {len(mbs)} moodboards reuse photos {reused} "
+            f"({photos} distinct photos, {vids} videos)")
+    return (f"REPETITIVE MOODBOARDS: {len(mbs)} moodboards reuse the same photos ({', '.join(reused)} "
+            f"appear in more than one) — the showcase looks repetitive. You only have {photos} distinct "
+            f"photos. Use at most {cap} moodboard(s), each with DISTINCT photos (no photo in two "
+            f"moodboards); turn the other real beats into `real_clip` windows (you have {vids} videos — "
+            f"different trims are distinct beats) so the visuals stay varied.")
 
 
 def _type_counts(segs: list[dict]) -> dict[str, int]:

@@ -287,3 +287,12 @@ Scaffold versions bumped (concept-v0.1, director-v1.3, shot-prompt-v1.1, shot-ag
 reviewer-v0.4, editing-reviewer-v0.3). **Deferred to Batch 2 (need code):** `sparse` captions,
 `handheld_jitter` motion, room-tone layer, VO compression, preserve-breaths. **Deferred:** dedicated
 Ending Agent (docs/ending_agent_notes.md) — gate on whether the Director varies endings on its own.
+
+### D30a. No moodboard photo-reuse (follow-up — the majority-real gate over-produced moodboards)
+First post-anti-tell run (0015, Conway) looked repetitive: the majority-real gate pushed 4 moodboards
+from only 5 photos, so @Image1/@Image3/@Image5 each appeared in TWO moodboards. Added a deterministic
+`director._moodboard_feedback` guard (in the existing regen loop, like the pacing guard): if any photo
+appears in >1 moodboard, regenerate with a cap (≤ `photos//2` moodboards, distinct photos each, lean on
+real_clip windows for variety). Scaffold (director-v1.4): a moodboard consumes its photos; no photo in
+two moodboards; prefer one richer moodboard + real_clip windows when photos are scarce. Majority-real
+rule unchanged (moodboards still count).
