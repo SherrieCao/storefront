@@ -181,15 +181,26 @@ voice ("Come on down to…", "For all your ___ needs", "Family-owned since…");
 the difference"); mid-tempo info-listing ("We offer X, Y, and Z, conveniently located at…"); generic
 CTA ("Call today!"). Talk to the viewer like a creator, weave the info in, don't announce it.
 
-## Voice style — pick one (`voice_style`)
-Choose the voice that fits THIS business + concept (see `script_craft.md` for what each sounds like),
-and justify it in `voice_style_reasoning`. Don't default to `local_ad`:
-- **`local_ad`** — warm, clear, info-forward (price/hours/location land explicitly). For trust-led,
-  cautious-buyer moments. The *good* version of local, never radio-spot.
-- **`social_native`** — concise, specific, slightly playful, hook-driven, info woven in. The default
-  for most service + product businesses on IG/TikTok.
-- **`influencer_pov`** — first-person, conversational, POV-framed. Voice-led; for aspirational/
-  lifestyle-fit businesses.
+## Voice style + PERSPECTIVE — match the narration to how the assets were SHOT
+First decide **`asset_perspective`** by LOOKING at the footage: were the photos/videos clearly shot by a
+THIRD PARTY (a photographer/owner filming the subject, the work, the space — the normal SMB case), or are
+they genuinely FIRST-PERSON (selfie angle, phone-in-hand, the subject's own eyes/hands)? Set it to
+`third_party` | `first_person` | `mixed`.
+
+Then pick the **narration perspective** to MATCH — set `narrative_person`:
+- **DEFAULT to second person** ("you…", "POV: you walk in…") or **third person** (observe/showcase the
+  work, describe what happens) — these fit third-party footage and are the right call for most SMBs.
+- Use **first person** ("I…", "my…", an immersive "this is my own POV") **ONLY when `asset_perspective`
+  is `first_person`.** First-person narration over footage someone else clearly shot reads as fake — a
+  top tell. (The ONE exception: a REAL, attributed customer-review quote.)
+
+Then pick the voice TONE (`voice_style`) that fits — justify in `voice_style_reasoning`:
+- **`social_native`** — concise, specific, slightly playful, hook-driven, info woven in. **The default**;
+  works in 2nd or 3rd person.
+- **`local_ad`** — warm, clear, info-forward. For trust-led, cautious-buyer moments; the *good* version
+  of local, never radio-spot. Typically 2nd/3rd person.
+- **`influencer_pov`** — first-person, conversational, POV-framed. **Only when `asset_perspective ==
+  first_person`** (genuinely self-shot footage); otherwise it's a mismatch — don't use it.
 
 ## seedance_shot craft (when you use one)
 - One subject, one real action (a clear motion verb), one camera move (push-in / pan / tilt / handheld
@@ -255,8 +266,10 @@ surprising angle unmistakably about THIS business. Before finalizing:
   "creative_angle": "one sentence — the angle and why it fits THIS business",
   "total_duration_s": 18,
   "composition_reasoning": "why this mix of segment types + this length serve the concept",
-  "voice_style": "local_ad | social_native | influencer_pov",
-  "voice_style_reasoning": "why this voice fits THIS business + concept",
+  "asset_perspective": "third_party | first_person | mixed (how the footage was SHOT — look at it)",
+  "narrative_person": "second | third | first (match the assets; first ONLY if asset_perspective=first_person)",
+  "voice_style": "social_native | local_ad | influencer_pov (influencer_pov only if first_person assets)",
+  "voice_style_reasoning": "why this voice + perspective fit THIS business + the assets",
   "script": "the full spoken script — HOOK + ONE idea, NO CTA/logistics; must ~cover the video (~30 words @15s, ~58 @30s)",
   "script_reasoning": "the hook tactic, the word count, and why every word earns its place; confirm there's NO spoken CTA/logistics (the card carries that)",
   "speech": "the exact line(s) spoken aloud (= script unless you trim)",
@@ -289,7 +302,13 @@ surprising angle unmistakably about THIS business. Before finalizing:
   `asset_summary` (e.g. @Image1, @Video1) — never a filename or freeform string. A `seedance_shot`
   `asset_ref` MUST be an `@Image…` (real-photo seed); "generated" / pure text-to-video is NOT allowed.
 - before/after framing ONLY if {{has_before_after}} is True.
-- Output `voice_style` (one of the three) + `voice_style_reasoning`; write the script in that voice.
+- Output `asset_perspective` + `narrative_person` + `voice_style` + `voice_style_reasoning`; write the
+  script in that perspective + voice.
+- PERSPECTIVE: if `asset_perspective` is `third_party` or `mixed`, write in 2nd or 3rd person — NO
+  first-person "I/my" or immersive self-POV, and do NOT use `influencer_pov`. First-person is allowed
+  ONLY when `asset_perspective == first_person`. Captions/overlays follow the same rule: never put
+  invented first-person words in a customer's mouth ("I love it!!!") — a REAL attributed review quote is
+  the only exception.
 - The spoken script does NOT sell: NO price/hours/location/booking/CTA in the script — those go in the
   ending. A spoken CTA or logistics line is a defect. NO tricolon / three-part list in the script.
 - The LAST segment is REQUIRED and carries the conversion info (name + location + booking) via the

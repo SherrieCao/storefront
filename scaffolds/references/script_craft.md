@@ -16,8 +16,15 @@ is everything. Change something every ~5s (a beat, a tone shift, a new shot) to 
 closing CARD, not the voice-over. A spoken "book now / right off the X / open 7 days" is what makes it
 sound like an ad. Let the voice be a real person saying one true thing; let the card do the selling.
 
+## Perspective first (match it to the footage)
+Default to **second person** ("you…", "POV: you walk in…") or **third person** (observe/showcase the work).
+Use **first person** ("I…", "my…") ONLY when the assets are genuinely self-shot (selfie / phone-in-hand) —
+over footage someone else clearly shot, first-person reads as fake. (A real attributed review quote is the
+one exception.) Most SMB submissions are third-party-shot, so 2nd/3rd person is almost always right.
+
 ## Hook patterns (open with one; combine two for power)
-- **POV / second-person:** "POV: you finally found a [thing] that [benefit]." / "This is your sign to…"
+- **Second-person / POV:** "POV: you finally found a [thing] that [benefit]." / "This is your sign to…"
+- **Third-person showcase:** open on the work itself / the room / the result and let it speak.
 - **Result-first / before-after:** open on the payoff or the transformation, then explain.
 - **Relatable problem:** name the viewer's exact pain in their words ("Ever drop your dog off and feel
   guilty all day?").
@@ -54,12 +61,14 @@ Also avoid the AI lexicon: "delve," "robust," "pivotal," "comprehensive," "eleva
 who outlined first. If every sentence is grammatically perfect and the same length, it's the tell.
 
 ## The three voice styles (Director picks one — `voice_style`)
-- **local_ad** — warm, clear, info-forward; price/hours/location land explicitly. For trust-led,
-  cautious-buyer moments (some salons/daycares/cleaning). The *good* version of "local," not radio-spot.
+Tone register, separate from perspective above. Write `social_native`/`local_ad` in 2nd or 3rd person.
 - **social_native** — concise, specific, slightly playful; hook-driven, info woven not announced. The
   default for most service + product businesses on IG/TikTok.
-- **influencer_pov** — first-person, conversational, POV-framed ("POV: you booked the salon that gets
-  your hair"). Voice-led, strong angle. For aspirational/lifestyle-fit businesses.
+- **local_ad** — warm, clear, info-forward; price/hours/location land explicitly. For trust-led,
+  cautious-buyer moments (some salons/daycares/cleaning). The *good* version of "local," not radio-spot.
+- **influencer_pov** — first-person, conversational, POV-framed ("POV: I booked the salon that gets my
+  hair"). **Use ONLY when the assets are genuinely first-person/self-shot** — over third-party footage
+  it's a mismatch that reads as fake. Default to social_native instead.
 
 ## [ILLUSTRATIVE FRAMEWORK EXAMPLE] — not real ads; the VO is idea-only, the CARD carries the info
 The spoken line stays in the idea and ENDS there; the practical info (in parentheses) goes on the
@@ -70,8 +79,9 @@ closing card, never the voice-over.
 - **Bakery (social_native):** VO — "The croissants are gone by nine. We start the dough at five —
   while you're still hitting snooze." (~20 words; sensory + scarcity, ends on the idea.)
   Card — "Rye & Co · Main Street · Fresh from 6am."
-- **Dog daycare (influencer_pov):** VO — "POV: it's 8am and your dog is more excited for work than you
-  are. You'll get the photos to prove it." (~24 words; POV hook, ends on the idea.)
+- **Dog daycare (social_native, 2nd person):** VO — "It's 8am and your dog is more excited for work than
+  you are. You'll get the photos to prove it." (~24 words; 2nd-person hook over third-party footage of the
+  dogs, ends on the idea.)
   Card — "Carol's Dog Daycare · Right off the 101 · Drop-off in 2 min · Book today."
 
 ## ADD REAL EXAMPLES HERE  ← operator: grow this; real beats illustrative

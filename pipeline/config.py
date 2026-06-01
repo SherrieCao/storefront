@@ -139,8 +139,8 @@ REVIEW_CACHE_TTL_DAYS = 7
 # Scaffold versions (stamped into meta.json)
 # ---------------------------------------------------------------------------
 SCAFFOLD_VERSIONS = {
-    "concept":           "concept-v0.2",     # +ranked anchor_candidates (pick a fresh one) + review summary themes
-    "creative_director": "director-v1.8",    # +vary ending vs endings_used_past_runs (topic history)
+    "concept":           "concept-v0.3",     # +match perspective to assets (don't impose 1st-person POV on 3rd-party footage)
+    "creative_director": "director-v1.9",    # +asset-grounded perspective (deprioritize 1st-person; 2nd/3rd default)
     "prompt_translator": "shot-prompt-v1.1", # anti-AI-tell look: practical light, muted color, handheld
     "shot_agent":        "shot-agent-v0.3",  # judge calibrated; "too polished" soft signal
     "editor":            "editor-v0.7",      # +Batch C transitions (speed_ramp_in/scale_reveal/light_leak) + motions (drift/scale_breath)

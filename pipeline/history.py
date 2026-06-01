@@ -103,9 +103,10 @@ def concept_history_block(slug: str) -> dict[str, Any] | None:
         "creative_angles_used": h.get("creative_angles_used", []),
         "review_details_used": h.get("review_details_used", []),
         "ending_types_used": h.get("ending_types_used", []),
-        "note": ("Explore a DIFFERENT angle and anchor on a review detail you haven't used yet. "
-                 "Repetition across runs is a creative failure — UNLESS the brief explicitly asks for a "
-                 "repeat."),
+        "voice_styles_used": h.get("voice_styles_used", []),
+        "note": ("Explore a DIFFERENT angle and anchor on a review detail you haven't used yet; vary the "
+                 "voice/ending from past runs too. Repetition across runs is a creative failure — UNLESS "
+                 "the brief explicitly asks for a repeat."),
     }
 
 

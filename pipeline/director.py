@@ -11,7 +11,7 @@ The Director plans creatively and NEVER reasons about cost (the $5 ceiling is a 
 NOT for: writing per-shot Seedance prompts (the per-shot composer) or the edit plan (the Editor).
 """
 from __future__ import annotations
-import json
+import json, re
 from pathlib import Path
 from typing import Any
 from . import config
@@ -80,19 +80,22 @@ def run_director(run: Run, inventory: dict[str, Any], concept: dict[str, Any] | 
             run.log(f"Director: attempt {attempt} produced an invalid brief — regenerating")
             continue
         verdict = reviewers.review(run, "director", brief, ctx)
-        # Deterministic guards (run alongside the creative review): pacing (E2) + moodboard photo reuse.
+        # Deterministic guards (run alongside the creative review): pacing (E2) + moodboard photo reuse +
+        # voice coverage + perspective (deprioritize 1st-person on third-party-shot assets).
         pace_fb = _pacing_feedback(run, brief, inventory)
         mood_fb = _moodboard_feedback(run, brief, inventory)
         cov_fb = _voice_coverage_feedback(run, brief)
-        passed = verdict["pass"] and not pace_fb and not mood_fb and not cov_fb
+        persp_fb = _perspective_feedback(run, brief)
+        passed = verdict["pass"] and not pace_fb and not mood_fb and not cov_fb and not persp_fb
         lenses = (list(verdict["failed_lenses"]) + (["pacing_too_slow"] if pace_fb else [])
-                  + (["moodboard_reuse"] if mood_fb else []) + (["voice_undercovers"] if cov_fb else []))
+                  + (["moodboard_reuse"] if mood_fb else []) + (["voice_undercovers"] if cov_fb else [])
+                  + (["first_person_mismatch"] if persp_fb else []))
         attempts.append({"attempt": attempt, "passed": passed, "scores": verdict["scores"],
                          "failed_lenses": lenses, "improvement": verdict["improvement"]})
         if passed:
             break
         fb = "  ".join(p for p in (verdict["improvement"] if not verdict["pass"] else "",
-                                   pace_fb or "", mood_fb or "", cov_fb or "") if p)
+                                   pace_fb or "", mood_fb or "", cov_fb or "", persp_fb or "") if p)
         run.log(f"Director: attempt {attempt} regenerating ({lenses})")
     if brief is None:
         raise RuntimeError("Director returned an empty/invalid brief after retries")
@@ -137,6 +140,13 @@ def _validate(brief: dict[str, Any]) -> dict[str, Any] | None:
     if not isinstance(dur, (int, float)) or dur <= 0:
         dur = sum(float(s.get("duration_s") or 0) for s in segs) or config.MIN_DURATION_S
     brief["total_duration_s"] = max(config.MIN_DURATION_S, min(config.MAX_DURATION_S, float(dur)))
+    # Perspective fields (the Director SEES the assets). Default asset_perspective to third_party — the
+    # SAFE assumption for SMB submissions (a photographer shot the work), which keeps the 1st-person guard
+    # active when the field is omitted. narrative_person left "" if absent (the guard's text scan catches it).
+    ap = str(brief.get("asset_perspective") or "").strip().lower()
+    brief["asset_perspective"] = ap if ap in {"third_party", "first_person", "mixed"} else "third_party"
+    np_ = str(brief.get("narrative_person") or "").strip().lower()
+    brief["narrative_person"] = np_ if np_ in {"first", "second", "third"} else ""
     return brief
 
 
@@ -215,6 +225,39 @@ def _moodboard_feedback(run: Run, brief: dict[str, Any], inventory: dict[str, An
             f"different trims are distinct beats) so the visuals stay varied.")
 
 
+_FIRST_PERSON_RE = re.compile(r"\bI\b|\bI'm\b|\bI've\b|\bI'd\b|\bI'll\b|\bmy\b|\bmine\b|\bme\b", re.IGNORECASE)
+
+
+def _has_first_person_singular(text: str) -> bool:
+    return bool(_FIRST_PERSON_RE.search(text or ""))
+
+
+def _perspective_feedback(run: Run, brief: dict[str, Any]) -> str | None:
+    """Perspective guard (deprioritize 1st-person). Most SMB assets are shot by a THIRD PARTY (a
+    photographer filming the subject/work), so a first-person 'I / my / my-own-POV' narration reads as a
+    mismatch. Fires when the script or ending caption is first-person-singular (or narrative_person ==
+    'first') WHILE asset_perspective != 'first_person'. None when consistent. (First-person stays valid
+    for genuinely first-person/selfie footage; a REAL attributed review quote is the scaffold's exception.)"""
+    ap = str(brief.get("asset_perspective") or "").strip().lower()
+    np_ = str(brief.get("narrative_person") or "").strip().lower()
+    script = str(brief.get("speech") or brief.get("script") or "")
+    caption = str((brief.get("ending") or {}).get("caption_suggestion") or "")
+    if ap == "first_person":
+        return None
+    first_person = (np_ == "first") or _has_first_person_singular(script) or _has_first_person_singular(caption)
+    run.log(f"Director: perspective check — asset_perspective={ap or '?'}, narrative_person={np_ or '?'}, "
+            f"first_person_text={first_person}")
+    if not first_person:
+        return None
+    return ("PERSPECTIVE MISMATCH: the provided assets are clearly shot by a THIRD PARTY (someone filming "
+            "the subject/space/work), so first-person 'I / my / my-own-POV' narration reads as fake. "
+            "Rewrite the script AND any caption in SECOND person (address 'you') or THIRD person "
+            "(observe/showcase) — drop 'I/my' and immersive self-POV; if you used influencer_pov, switch to "
+            "social_native. Set narrative_person to 'second' or 'third'. (First-person is ONLY for "
+            "genuinely first-person/selfie footage; a REAL attributed customer-review quote is the one "
+            "exception.)")
+
+
 def _type_counts(segs: list[dict]) -> dict[str, int]:
     out: dict[str, int] = {}
     for s in segs:
@@ -268,6 +311,8 @@ def _stub_director(inv: dict[str, Any] | None = None) -> str:
         "speech": f"STUB voiceover for {biz}: real, specific, and worth the trip. Come see for yourself.",
         "mood": "warm, authentic, local",
         "pacing": "brisk",
+        "asset_perspective": "third_party",
+        "narrative_person": "second",
         "editing_feel": "fast clean hard cuts with one soft crossfade into the closing card",
         "hook": {"hook_visual": "the strongest real asset, in motion", "hook_line": "STUB hook line.",
                  "mechanic": "newness", "why": "stub", "cut_dead_first_second": True},
