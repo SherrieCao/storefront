@@ -144,6 +144,8 @@ def design_hook(business: str = "", format: str = "", angle: str = "",
         fb, spec, verdict = None, {}, {}
         for attempt in range(1, config.MAX_CREATIVE_RETRIES + 1):
             spec = _produce(fb)
+            if not isinstance(spec, dict):   # Gemini sometimes returns a JSON array; don't index it as a dict
+                spec = {"hook_line": "", "mechanic": "", "why": "non-object hook output", "_nonobject": True}
             if run is None:
                 break
             verdict = reviewers.review(run, "hook", spec, ctx)
