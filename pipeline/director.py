@@ -79,15 +79,16 @@ def run_director(run: Run, inventory: dict[str, Any], concept: dict[str, Any] | 
         # Deterministic guards (run alongside the creative review): pacing (E2) + moodboard photo reuse.
         pace_fb = _pacing_feedback(run, brief, inventory)
         mood_fb = _moodboard_feedback(run, brief, inventory)
-        passed = verdict["pass"] and not pace_fb and not mood_fb
+        cov_fb = _voice_coverage_feedback(run, brief)
+        passed = verdict["pass"] and not pace_fb and not mood_fb and not cov_fb
         lenses = (list(verdict["failed_lenses"]) + (["pacing_too_slow"] if pace_fb else [])
-                  + (["moodboard_reuse"] if mood_fb else []))
+                  + (["moodboard_reuse"] if mood_fb else []) + (["voice_undercovers"] if cov_fb else []))
         attempts.append({"attempt": attempt, "passed": passed, "scores": verdict["scores"],
                          "failed_lenses": lenses, "improvement": verdict["improvement"]})
         if passed:
             break
         fb = "  ".join(p for p in (verdict["improvement"] if not verdict["pass"] else "",
-                                   pace_fb or "", mood_fb or "") if p)
+                                   pace_fb or "", mood_fb or "", cov_fb or "") if p)
         run.log(f"Director: attempt {attempt} regenerating ({lenses})")
     if brief is None:
         raise RuntimeError("Director returned an empty/invalid brief after retries")
@@ -154,6 +155,34 @@ def _pacing_feedback(run: Run, brief: dict[str, Any], inventory: dict[str, Any])
             f"for ~{target_n}+ beats (~1.5–2s each). You have {usable} usable assets; turn more of them "
             f"into distinct short beats (split long holds; add real_clip / moodboard beats). Add MORE, "
             f"SHORTER segments — do NOT pad the existing ones.")
+
+
+_SPOKEN_WPS = 2.4   # ~spoken words/second for the VO duration estimate
+
+
+def _voice_coverage_feedback(run: Run, brief: dict[str, Any]) -> str | None:
+    """Guard the freed-script length: the VO must roughly COVER the video, else the voice ends mid-ad
+    and the back half plays silent (just music) — feels unfinished. Estimate spoken seconds from the
+    word count; if it covers < ~65% of total_duration_s, regenerate (lengthen the script OR shorten the
+    total). None if coverage is fine. (Inverse of the old voice-OVERRUN problem.)"""
+    script = str(brief.get("speech") or brief.get("script") or "")
+    words = len(script.split())
+    total = float(brief.get("total_duration_s") or 0)
+    if words == 0 or total <= 0:
+        return None
+    est_vo = words / _SPOKEN_WPS
+    run.log(f"Director: voice-coverage check — {words} words ≈ {est_vo:.1f}s VO vs {total:.0f}s video")
+    if est_vo >= 0.65 * total:
+        return None
+    target_words = int(0.85 * total * _SPOKEN_WPS)
+    shorter = max(config.MIN_DURATION_S, int(est_vo / 0.85) + 1)
+    fix_b = (f", or (b) drop total_duration_s to ~{shorter}s so the voice fills it"
+             if shorter < total - 1 else "")
+    return (f"VOICE UNDER-COVERS: the script is ~{words} words (~{est_vo:.0f}s spoken) but "
+            f"total_duration_s is {total:.0f}s — the voice ends near the halfway point, leaving "
+            f"~{total - est_vo:.0f}s of SILENT video. Fix it: (a) develop the idea to ~{target_words} "
+            f"words (still hook + ONE idea, NO CTA — just more of the same thread){fix_b}. "
+            f"Match length to content.")
 
 
 def _moodboard_feedback(run: Run, brief: dict[str, Any], inventory: dict[str, Any]) -> str | None:
