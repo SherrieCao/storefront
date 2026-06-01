@@ -260,3 +260,30 @@ came from a slug (`pipeline/research.py`). Input contract: `triage` now prefers 
 everything business-specific stays in the free-text `brief` (no service-specific fields to overfit).
 `location` also flows to the Director payload so the F closing card can carry the real location. Verified:
 Conway → `found:true`, real detail ("recreates your reference photo exactly — snow leopard print").
+
+## D30 (SHIPPED — anti-AI-tells, Batch 1: scaffolds only). "Template the intent, de-template the surface."
+From SPEC_anti_ai_tells.md. The pipeline structure stays rigid (it guarantees the message); the
+viewer-facing surface varies enough to not pattern-match as AI/template. Batch-1 (scaffold + reference
+only, backward-compatible):
+- **Human-anchor + no-AI-product (HARD GATE, concept + director):** ≥half of non-card segments are
+  real_clip/moodboard; a `seedance_shot` never depicts the actual product the customer receives (use the
+  real photo; AI does atmosphere/motion around it). *Degrades* gracefully when there's ~no real footage
+  (don't deadlock — flag the gap). Verifiably-local anchor strengthened.
+- **Ban LLM-script tells (director + creative_reviewer + script_craft.md):** no tricolon/"rule of three"
+  (the #1 fingerprint), no hedge openers / em-dash balance / tidy resolution closers; write
+  asymmetrically; read-aloud test. Reviewer FAILS a tricolon.
+- **Varied rhythm, not metronomic (director + editor + editing_reviewer):** uniform same-length cuts are
+  the #1 AI-editing tell; plan deliberate variation (≥0.5s between adjacent beats); editor picks a
+  rhythm profile (punchy_irregular / accelerating / breath_and_burst); new `template_feel` reviewer lens.
+- **Anti-AI LOOK in shot prompts (prompt_translator):** practical/uneven lighting (ban "studio/soft
+  diffused/golden hour"), muted phone-camera color (ban "vivid/saturated/cinematic"), handheld micro-
+  movement (ban "smooth/stabilized"), compose around failure regions (hands/text/mirrors/crowds). Shot
+  judge gains a SOFT "too polished" signal (feedback, never a fail).
+- **Flexible ENDING (REPLACES F's mandatory card; operator chose full flexibility incl. caption-only):**
+  Director sets `ending_type` ∈ {card, overlay, callback, tag, linger}; the last segment need not be a
+  card. Info must EXIST somewhere (on-screen card/overlay, or caption/bio for callback/tag) — VO still
+  never sells. `overlay` endings reuse the existing `lower_third`; the rest leave info off-screen.
+Scaffold versions bumped (concept-v0.1, director-v1.3, shot-prompt-v1.1, shot-agent-v0.3, editor-v0.5,
+reviewer-v0.4, editing-reviewer-v0.3). **Deferred to Batch 2 (need code):** `sparse` captions,
+`handheld_jitter` motion, room-tone layer, VO compression, preserve-breaths. **Deferred:** dedicated
+Ending Agent (docs/ending_agent_notes.md) — gate on whether the Director varies endings on its own.

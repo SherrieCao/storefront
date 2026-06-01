@@ -76,6 +76,11 @@ Florist:
 - Slow / "radio-spot" pacing: deliberate, mid-tempo cutting reads as a local TV ad, not social.
   Fast, brisk cutting + a tight script is the SOCIAL-NATIVE DEFAULT; measured pacing is the
   exception (genuine BTS/testimonial/slow-reveal only). When in doubt, cut faster and say less.
+- AI depicting the actual product the customer will receive (generated food/nails/hair/flowers that
+  isn't the real thing). This triggers the strongest local backlash — "if you cut corners letting me
+  see the product, you cut corners on the product." Use the REAL photo (enhanced); generate
+  atmosphere/context AROUND it, never the product itself. (Also: metronomic same-length cuts and a
+  branded card every time read as "AI/template," not content.)
 
 ---
 

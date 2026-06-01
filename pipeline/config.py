@@ -134,11 +134,11 @@ MAX_REGEN_RETRIES = 2
 # Scaffold versions (stamped into meta.json)
 # ---------------------------------------------------------------------------
 SCAFFOLD_VERSIONS = {
-    "concept":           "concept-v0.1",
-    "creative_director": "director-v1.1",   # mixed-segment output; E2 pace guard + E4 one-idea body
-    "prompt_translator": "shot-prompt-v1.0", # per-shot composer
-    "shot_agent":        "shot-agent-v0.1",
-    "editor":            "editor-v0.1",
+    "concept":           "concept-v0.1",     # anti-AI-tell: human-anchor + local + no-AI-product
+    "creative_director": "director-v1.3",    # anti-AI-tell: majority-real, varied rhythm, no tricolon, flexible ending
+    "prompt_translator": "shot-prompt-v1.1", # anti-AI-tell look: practical light, muted color, handheld
+    "shot_agent":        "shot-agent-v0.3",  # judge calibrated; "too polished" soft signal
+    "editor":            "editor-v0.5",      # rhythm profiles; ending-type aware
 }
 
 # ---------------------------------------------------------------------------

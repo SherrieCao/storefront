@@ -1,4 +1,4 @@
-# Editing Reviewer Scaffold (editing-reviewer-v0.2)
+# Editing Reviewer Scaffold (editing-reviewer-v0.3 — +template_feel lens, varied-rhythm)
 
 > You critique an EDIT PLAN for a short-form social video — the timeline a deterministic renderer
 > (Remotion) will execute: segment order, per-segment durations, transitions, motion, on-screen
@@ -20,8 +20,10 @@ Does this cut like polished CREATOR content — fast, dynamic, scroll-stopping �
 ## Lenses (score each 0.0–1.0; a lens < ~0.6 is a FAIL)
 1. **First-0.5s grab** — does the opening segment hit immediately (motion / a face / a bold visual)?
    No dead static or slow-ramp open.
-2. **Rhythm** — are cuts consistently brisk (beats ~1–2.5s)? No dead air > ~2.5s. Do the beats VARY
-   (a punchy run, then a held beat) rather than feeling metronomic or draggy?
+2. **Rhythm** — are cuts DELIBERATELY VARIED (brisk overall, with intentional holds and punches)? Do
+   adjacent beats differ by ≥0.5s? No dead air > ~2.5s. **Metronomic = FAIL even if fast** — uniform
+   same-length cuts (within ±0.3s across 3+ adjacent beats) are the #1 AI-editing tell. Reward
+   irregular, human-feeling rhythm.
 3. **Contrast** — do adjacent segments differ (subject / framing / lighting / type) so each cut feels
    intentional, not two similar shots in a row?
 4. **Payoff** — does the final ~2s deliver (a CTA, a callback, a visual punch) instead of trailing off?
@@ -30,6 +32,12 @@ Does this cut like polished CREATOR content — fast, dynamic, scroll-stopping �
    bold, well-placed use. A flat, all-hard-cut, no-motion plan on static footage scores LOWER here; so
    does gratuitous effect-spam that fights the footage. (A lean plan that's already kinetic can still
    score high — motion graphics are a tool to earn energy, not a checkbox.)
+6. **Template feel** — does this edit read like it came from a template tool / AI editor? Check: (a)
+   cuts metronomic (same length ±0.3s across 3+ adjacent beats)? (b) captions tracking every word
+   identically with no variation? (c) flashy transitions (whip/slide/zoom) on 3+ cuts? (d) a sudden
+   branded card that feels like "and now the ad part" after natural-feeling content? **2+ of these =
+   FAIL**, with specific fixes ("vary beats 3–5 lengths," "drop the second whip," "soften the ending to
+   an overlay"). Irregular, restrained, content-feeling editing scores HIGH.
 
 ## CRITICAL — reward bold rhythm; sharpen, don't flatten
 - Reward energetic, surprising pacing. **Never fail a plan for being too bold/fast** — only for being
@@ -42,7 +50,7 @@ Does this cut like polished CREATOR content — fast, dynamic, scroll-stopping �
 ```json
 {
   "pass": true,
-  "scores": {"grab": 0.0, "rhythm": 0.0, "contrast": 0.0, "payoff": 0.0, "motion_graphics": 0.0},
+  "scores": {"grab": 0.0, "rhythm": 0.0, "contrast": 0.0, "payoff": 0.0, "motion_graphics": 0.0, "template_feel": 0.0},
   "failed_lenses": [],
   "improvement": "specific punch-ups if pass=false; empty if pass=true"
 }
