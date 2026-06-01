@@ -390,3 +390,20 @@ Closed the remaining design-system items + SPEC_editor_loop_topic_history_review
   FAILs (0.2, targeted fix); a fresh varied overlay PASSes (0.83).
 
 Repo tidy: specs consolidated under `docs/Specs/`; CLAUDE.md paths fixed.
+
+## D36 (SHIPPED — narrative perspective is grounded in the assets; deprioritize 1st-person)
+Runs 0018 & 0019 both narrated first-person ("Conway moms…", an "I Love it!!!" caption) over footage a
+THIRD PARTY clearly shot — a mismatch that reads as fake. Operator rule: **deprioritize first-person POV;
+prefer 2nd/3rd person; first-person ONLY when the assets are genuinely first-person (selfie / phone-in-
+hand).** The bias was systemic (concept asked for "the POV"; `social_native` was "the default";
+`influencer_pov` is first-person; `script_craft` led with POV hooks), and nothing checked perspective
+against the assets. Fix: the Director (which SEES the assets, D4) now declares `asset_perspective`
+(third_party | first_person | mixed) + `narrative_person` (first | second | third); a deterministic
+`_perspective_feedback` guard in the self-correct loop (alongside pacing/moodboard/voice) regenerates when
+the script OR ending caption is first-person-singular while `asset_perspective != first_person`. Scaffolds
+reweighted (director-v1.9, concept-v0.3, script_craft) so 2nd/3rd person is the default and
+`influencer_pov` is gated to self-shot footage; no invented first-person customer voice — a REAL
+attributed review quote is the one exception. Creative reviewer (v0.5) enforces it as an `smb_fit` FAIL.
+`asset_perspective` defaults to `third_party` when omitted (the safe SMB assumption, keeps the guard
+active). Verified: unit guard (6 cases), reviewer (1st-person FAILs / 2nd passes), live Director on Conway
+→ `third_party` / `second` / fully 2nd-person "POV: you walk in…" script (vs the old first-person).
