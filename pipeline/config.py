@@ -131,11 +131,15 @@ REMOTION_COMPOSITION_ID = "Ad"
 # ---------------------------------------------------------------------------
 MAX_REGEN_RETRIES = 2
 
+# Business-research review cache (per-business, inputs/<business>/reviews_cache.json). Skip the Google
+# Places fetch when the cache is younger than this; reviews change slowly, so 7 days is a safe TTL.
+REVIEW_CACHE_TTL_DAYS = 7
+
 # ---------------------------------------------------------------------------
 # Scaffold versions (stamped into meta.json)
 # ---------------------------------------------------------------------------
 SCAFFOLD_VERSIONS = {
-    "concept":           "concept-v0.1",     # anti-AI-tell: human-anchor + local + no-AI-product
+    "concept":           "concept-v0.2",     # +ranked anchor_candidates (pick a fresh one) + review summary themes
     "creative_director": "director-v1.7",    # script must cover the video; designed cards
     "prompt_translator": "shot-prompt-v1.1", # anti-AI-tell look: practical light, muted color, handheld
     "shot_agent":        "shot-agent-v0.3",  # judge calibrated; "too polished" soft signal

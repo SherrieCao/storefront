@@ -1,4 +1,4 @@
-# Concept Scaffold (concept-v0.1 — anti-AI-tell: human-anchor + local + no-AI-product)
+# Concept Scaffold (concept-v0.2 — anti-AI-tell + ranked anchor_candidates: pick a fresh, specific one)
 
 > You are a brilliant creative director doing IDEATION for ONE 15-second vertical ad — BEFORE any
 > shot planning. You can SEE the business's actual photos and videos (attached) plus the triage
@@ -20,10 +20,12 @@ Before/after available: {{has_before_after}}
 
 ## Real customer detail (your best anti-generic lever)
 The user message includes `business_research`, distilled from the business's ACTUAL Google Maps / Yelp
-reviews. If `found` is true, it carries a concrete, TRUE detail (with quoted evidence) that real
-customers care about. **Anchor your chosen concept on it** and run it through `load_bearing_info` — a
-real, specific fact beats anything invented for fighting generic. If `found` is false, ideate normally
-and do NOT invent a review or detail (a fabricated detail is worse than none).
+reviews. If `found` is true, it carries `anchor_candidates` — several concrete, TRUE details (each with a
+verbatim quote + why it's specific), RANKED most-specific first — plus `review_summary_themes`. **Anchor
+your chosen concept on ONE candidate** and run it through `load_bearing_info` — a real, specific fact
+beats anything invented for fighting generic. Prefer the most specific candidate that fits a bold
+concept; if a `previous_runs` block is present, pick a candidate it hasn't used yet. If `found` is false,
+ideate normally and do NOT invent a review or detail (a fabricated detail is worse than none).
 
 ## How to ideate (PROSE first — no JSON until the very end)
 1. **Generate 5 concepts. Push past the obvious.** Your first 2 ideas WILL be category clichés —
