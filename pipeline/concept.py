@@ -44,9 +44,13 @@ def run_concept(run: Run, inventory: dict[str, Any], *, use_cache: bool = False,
         "business": inventory["business"], "brief": inventory["brief"],
         "has_before_after": inventory["has_before_after"],
         "has_logo": inventory["has_logo"], "palette": inventory["palette"],
-        "business_research": research,        # {found, detail, evidence, source, ...} or {found:false}
+        "business_research": research,        # {found, anchor_candidates, detail, ...} or {found:false}
         "asset_summary": _asset_summary(inventory),
     }
+    from . import history                       # de-weight concepts/details/endings used in past runs (Part B)
+    prev = history.concept_history_block(run.business)
+    if prev:
+        base_payload["previous_runs"] = prev
     ctx = {"business": inventory["business"], "brief": inventory["brief"]}
 
     def _produce(fb: str | None) -> tuple[dict[str, Any], str | None]:

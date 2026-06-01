@@ -50,6 +50,10 @@ def run_director(run: Run, inventory: dict[str, Any], concept: dict[str, Any] | 
         "asset_summary": _asset_summary(inventory),
         "duration_bounds_s": [config.MIN_DURATION_S, config.MAX_DURATION_S],
     }
+    from . import history                       # light steer: vary the ending vs past runs (Part B)
+    endings = history.director_ending_hint(run.business)
+    if endings:
+        base_payload["endings_used_past_runs"] = endings
     ctx = {"business": inventory["business"], "brief": inventory["brief"]}
 
     def _produce(fb: str | None) -> tuple[dict[str, Any] | None, str | None]:

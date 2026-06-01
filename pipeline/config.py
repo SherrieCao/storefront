@@ -140,7 +140,7 @@ REVIEW_CACHE_TTL_DAYS = 7
 # ---------------------------------------------------------------------------
 SCAFFOLD_VERSIONS = {
     "concept":           "concept-v0.2",     # +ranked anchor_candidates (pick a fresh one) + review summary themes
-    "creative_director": "director-v1.7",    # script must cover the video; designed cards
+    "creative_director": "director-v1.8",    # +vary ending vs endings_used_past_runs (topic history)
     "prompt_translator": "shot-prompt-v1.1", # anti-AI-tell look: practical light, muted color, handheld
     "shot_agent":        "shot-agent-v0.3",  # judge calibrated; "too polished" soft signal
     "editor":            "editor-v0.7",      # +Batch C transitions (speed_ramp_in/scale_reveal/light_leak) + motions (drift/scale_breath)

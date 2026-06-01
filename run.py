@@ -19,7 +19,7 @@ from pipeline import config
 from pipeline.tracing import setup_run
 from pipeline import (triage as tri, concept as concept_, director as dir_, enhance as enh,
                       keyframes as kf_, shots as shots_, music as music_, voice as voice_,
-                      editor as ed_, review as rev, lineage as lin, errors)
+                      editor as ed_, review as rev, lineage as lin, history as hist_, errors)
 from pipeline.budget import CostCeilingExceeded
 
 # "music" runs after shots, before the timeline is planned (the editor snaps cuts to its beat grid).
@@ -90,6 +90,8 @@ def main() -> int:
         review = rev.run_review(run, final, expected_s)
         lin.build_lineage(run, brief, concept, keyframes, shots, voice,
                           edit_doc.get("plan", {}), review, final)
+        # Topic history: log this run's concept/angle/ending so future runs steer away from repeats.
+        hist_.record_run(run, concept, brief, _load(run.dir / "01_research.json"))
         if shots.get("flagged"):
             run.log(f"[OPERATOR ACTION] {len(shots['flagged'])} shot(s) flagged — see flagged_shots.json")
         run.finalize()

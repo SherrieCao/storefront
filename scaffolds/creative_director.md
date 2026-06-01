@@ -246,6 +246,8 @@ surprising angle unmistakably about THIS business. Before finalizing:
   `overlay` `{kind:"lower_third", text: on_screen_text}`; `callback`/`tag`/`linger` → the last segment is
   a visual beat that just plays (no card), info goes to the caption. Copy the result into the `ending`
   field. Don't default to `card` — let the ending fit the voice (see "The ENDING carries the selling").
+  If `endings_used_past_runs` is present in the user message, pick a DIFFERENT `ending_type` than those
+  (a card every single run is itself a template tell) — unless the brief explicitly asks to repeat one.
 
 ## Output (JSON only, no preamble, no markdown fences)
 ```json
