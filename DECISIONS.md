@@ -343,3 +343,15 @@ as TEXT falls back to white when `palette[0]` is too dark (lum ≤ 90), avoiding
 white text on the dark-backed styles means no live video-luminance detection needed. Verified: all 4
 styles render as distinct designed cards. **Deferred (later batches):** caption system §1 (keep
 white/grey + palette guard), transitions §2, motion §3 expansions, live luminance detection.
+
+## D34 (SHIPPED — Remotion design system, Batch B: 4-caption-style system)
+From SPEC_remotion_design_system §1. Rebuilt `KineticCaption.tsx` from one look into a ROUTER over four
+distinct caption aesthetics: `bold_center` (big Inter Black centered — default), `minimal_lower` (48px
+Inter Medium, bottom-left over a gradient, phrase fades in as a block), `handwritten` (Caveat script,
+2–3 words, hand-placed jitter + underline on the spoken word), `sparse_keyword` (only key words, ONE at
+a time, 96px slam-in). The spoken word always highlights. **Palette guard kept (operator's call):**
+accent used as text only when `lum(palette[0]) > 110`, else white — no grey-palette reversal. Legacy
+`clean_pop`/`emphasis`/`karaoke` alias to `bold_center` sub-modes; `sparse` → `sparse_keyword` (backward
+compat). Fonts reuse Inter + Caveat (no new font; stayed under the 3-font cap). `caption_style` enum +
+editor scaffold v0.6 updated; editor default → `bold_center`. Verified: all 4 render as distinct looks.
+**Still deferred:** transitions §2, motion §3 expansions (scale_breath/drift), live luminance detection.

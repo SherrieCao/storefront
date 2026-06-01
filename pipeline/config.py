@@ -139,7 +139,7 @@ SCAFFOLD_VERSIONS = {
     "creative_director": "director-v1.6",    # designed cards: card_style + 4-tier card_tiers
     "prompt_translator": "shot-prompt-v1.1", # anti-AI-tell look: practical light, muted color, handheld
     "shot_agent":        "shot-agent-v0.3",  # judge calibrated; "too polished" soft signal
-    "editor":            "editor-v0.5",      # rhythm profiles; ending-type aware
+    "editor":            "editor-v0.6",      # 4 caption styles (bold_center/minimal_lower/handwritten/sparse_keyword)
 }
 
 # ---------------------------------------------------------------------------

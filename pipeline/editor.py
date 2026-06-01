@@ -72,7 +72,7 @@ def plan_timeline(run: Run, brief: dict[str, Any], shots_result: dict[str, Any],
     timeline = {"fps": config.FPS, "width": 1080, "height": 1920,
                 "segments": segs, "sources": sources, "total_s": round(total_s, 2),
                 "palette": inventory.get("palette", []), "reasoning": agent.get("reasoning", ""),
-                "caption_style": agent.get("caption_style", "clean_pop"),
+                "caption_style": agent.get("caption_style", "bold_center"),
                 "_review": {"passed": verdict.get("pass", True), "scores": verdict.get("scores", {}),
                             "failed_lenses": verdict.get("failed_lenses", []), "attempts": attempts}}
     run.log(f"Editor: timeline {total_s:.1f}s — "
@@ -161,7 +161,7 @@ def render(run: Run, timeline: dict[str, Any], voice: dict[str, Any], *,
     render_plan = {"fps": timeline["fps"], "width": timeline["width"], "height": timeline["height"],
                    "segments": segs, "audio": audio, "music": music_track,
                    "captions": captions, "words": words,
-                   "caption_style": timeline.get("caption_style", "clean_pop"),
+                   "caption_style": timeline.get("caption_style", "bold_center"),
                    "palette": timeline.get("palette", [])}
     (run.dir / EDIT_PLAN_FILE).write_text(json.dumps(
         {"plan": render_plan, "total_s": timeline["total_s"], "reasoning": timeline.get("reasoning", "")},
