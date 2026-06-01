@@ -58,7 +58,8 @@ def run_director(run: Run, inventory: dict[str, Any], concept: dict[str, Any] | 
             payload["prior_attempt_failed_review"] = {"fix_these": fb}
         agent_tools.set_assets(inventory)
         raw, thinking, _i, _o = run_agent_loop(
-            run, "director", scaffold, model, ["inspect_asset", "trend_lookup", "design_hook"],
+            run, "director", scaffold, model,
+            ["inspect_asset", "trend_lookup", "design_hook", "design_ending"],
             user_text=json.dumps(payload, indent=2), image_paths=image_paths, video_paths=video_paths,
             max_iterations=6,
             stub=lambda: (_stub_director(inventory), "STUB thinking: no GEMINI_API_KEY set", 0, 0))

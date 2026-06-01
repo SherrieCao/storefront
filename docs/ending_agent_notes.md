@@ -1,9 +1,12 @@
-# Ending Agent — design notes (DON'T BUILD YET)
+# Ending Agent — BUILT (gate met: Director defaulted to `card` 3/3 runs)
 
-Captured from SPEC_anti_ai_tells.md §10. The research validates a dedicated ending designer (mirrors
-the Hook Designer). **Do not build until the Director's ending flexibility (Batch 1, §2b / `ending_type`)
-has run for 5–10 real runs** and we've seen whether the Director picks varied endings on its own or
-just defaults to `card`. If it defaults, a dedicated agent is worth it; if it varies well, skip it.
+Captured from SPEC_anti_ai_tells.md §10. **Gate met early:** runs 0013/0015/0016 all defaulted to a
+`card` ending despite full `ending_type` flexibility, so the dedicated ending designer was built. It is
+`design_ending` — a Director tool mirroring `design_hook` (`pipeline/agent/tools.py`): the Director
+calls it after planning segments + voice_style, gets `{ending_type, on_screen_text, caption_suggestion,
+why}`, realizes it in the LAST segment (card / lower_third overlay / bare visual for callback/tag/
+linger), and copies it into the brief's `ending` object. Lean: one Gemini call, no internal reviewer
+(the creative reviewer already checks the ending). Watch whether endings now actually vary across runs.
 
 Design (for the future spec):
 - **Pattern:** a tool the Director calls (like `design_hook`) — or a separate post-Director stage —

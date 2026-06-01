@@ -157,3 +157,85 @@ def design_hook(business: str = "", format: str = "", angle: str = "",
     except Exception as e:
         return {"hook_line": "", "mechanic": "", "why": f"hook_designer error: {e}",
                 "cut_dead_first_second": True, "_error": str(e)}
+
+
+# --- Ending Designer: the final ~2-3s. Mirrors the Hook Designer — a tool the Director calls, so the
+# ending is a discrete, inspectable object. Forces a DELIBERATE ending instead of defaulting to a card
+# (a branded card every time is a template tell). The Director realizes the returned ending in the
+# LAST segment. Lean: one call, no internal reviewer (the creative reviewer already checks the ending).
+_ENDING_SYSTEM = """You are the Ending Designer for a short-form social ad. You design ONLY the final
+~2-3 seconds — HOW the ad delivers its real info (business name / location / booking) and lands. JSON only.
+
+A branded info CARD every single time is a template tell — "the moment the video stops pretending to be
+content." Pick the ONE ending that fits the voice_style + concept; do NOT default to card unless it
+genuinely fits. Types:
+- card: a clean closing info card (name | location | booking). Best for local_ad / trust-led.
+- overlay: name/location/@handle as a lower-third text overlay on the final VISUAL beat — softer,
+  native. Good for social_native / influencer_pov.
+- callback: the final beat calls back to the hook (visual/verbal); the practical info lives in the
+  CAPTION/bio, NOT on screen.
+- tag: a minimal @handle / location-pin vibe; info mainly in the caption/bio.
+- linger: the final real shot just holds; info via a small overlay or the caption.
+
+Rules:
+- The info must be delivered SOMEWHERE: on-screen (card/overlay) OR, for callback/tag/linger, in a
+  caption you write (caption_suggestion).
+- REAL info only — NEVER fabricate a phone/URL/handle (use one ONLY if it's verbatim in the brief);
+  otherwise name + real location + a plain ask ("Book today").
+- Match the voice: social_native/influencer_pov lean overlay/callback/tag/linger; local_ad leans card.
+
+Output JSON:
+{"ending_type":"card|overlay|callback|tag|linger",
+ "on_screen_text":"card/overlay text — 'Name | Location | Book' — EMPTY for callback/tag/linger",
+ "caption_suggestion":"the IG caption that carries the info (esp. for callback/tag/linger)",
+ "why":"one line: why this ending fits the voice + concept"}"""
+
+
+@tool("design_ending",
+      "Design the final ~2-3 seconds — how the ad delivers its name/location/booking and lands. Returns "
+      "{ending_type, on_screen_text, caption_suggestion, why}. Call AFTER planning segments + setting "
+      "voice_style; then make the LAST segment realize it (card -> a card with on_screen_text; overlay "
+      "-> the last visual beat carries a lower_third overlay with on_screen_text; callback/tag/linger -> "
+      "the last visual beat just plays, info goes to the caption). Copy it into the `ending` field.",
+      {"type": "object",
+       "properties": {
+           "business":    {"type": "string"},
+           "location":    {"type": "string", "description": "city/area (for the card/overlay)"},
+           "voice_style": {"type": "string", "description": "local_ad | social_native | influencer_pov"},
+           "angle":       {"type": "string", "description": "the creative angle / POV"},
+           "hook_line":   {"type": "string", "description": "the hook (so a callback can echo it)"},
+           "brief":       {"type": "string", "description": "operator brief (real info only)"}},
+       "required": ["business", "voice_style"]},
+      not_for="writing the script or the closing card's full layout (the editor renders it)")
+def design_ending(business: str = "", location: str = "", voice_style: str = "", angle: str = "",
+                  hook_line: str = "", brief: str = "") -> dict[str, Any]:
+    from .. import config
+    payload = json.dumps({"business": business, "location": location, "voice_style": voice_style,
+                          "angle": angle, "hook_line": hook_line, "brief": brief}, indent=2)
+    if not config.GEMINI_API_KEY:          # offline stub
+        return {"ending_type": "card", "on_screen_text": f"{business} | {location} | Book today",
+                "caption_suggestion": "", "why": "stub: no GEMINI_API_KEY", "_stub": True}
+    try:
+        import time
+        from google import genai
+        from google.genai import types
+        from ..tracing import get_active_run, log_llm_call
+        from ..llm import parse_json
+        model = config.MODEL_ROUTER.get("hook_designer", config.MODEL_ROUTER["creative_director"])
+        client = genai.Client(api_key=config.GEMINI_API_KEY)
+        run = get_active_run()
+        t0 = time.time()
+        resp = client.models.generate_content(
+            model=model, contents=[payload],
+            config=types.GenerateContentConfig(system_instruction=_ENDING_SYSTEM,
+                                               response_mime_type="application/json"))
+        if run is not None:
+            u = resp.usage_metadata
+            log_llm_call(run, "ending_designer", model, "[design_ending]", resp.text or "",
+                         (u.prompt_token_count or 0), (u.candidates_token_count or 0),
+                         int((time.time() - t0) * 1000), None)
+        spec = parse_json(resp.text)
+        return spec if isinstance(spec, dict) else {"ending_type": "card", "_parse_error": True}
+    except Exception as e:
+        return {"ending_type": "card", "on_screen_text": f"{business} | {location} | Book today",
+                "caption_suggestion": "", "why": f"ending_designer error: {e}", "_error": str(e)}

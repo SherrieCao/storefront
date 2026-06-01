@@ -105,7 +105,8 @@ MAX_VIDEO_CLIP_S  = 5.0              # max real_clip trim length (Remotion trims
 # Multi-gen shot policy + cost ceiling (D5, D6)
 # ---------------------------------------------------------------------------
 MAX_SHOT_RETRIES  = 3                # per seedance_shot: generate + judge, retry up to 3, then flag
-MAX_CREATIVE_RETRIES   = 2           # per creative stage: produce + review, self-correct up to N
+MAX_CREATIVE_RETRIES   = 3           # per creative stage: produce + review, self-correct up to N
+                                     # (3 since the director now stacks reviewer + pacing + moodboard guards)
 CREATIVE_MAX_ESCALATIONS = 1         # director-review fail -> re-roll the upstream concept this many times
 COST_CEILING_USD  = 5.00             # SILENT safety net (D6/D19): Director never sees cost
 COST_WARN_FRACTION = 0.8             # log a warning once cost crosses this fraction of the ceiling
@@ -135,7 +136,7 @@ MAX_REGEN_RETRIES = 2
 # ---------------------------------------------------------------------------
 SCAFFOLD_VERSIONS = {
     "concept":           "concept-v0.1",     # anti-AI-tell: human-anchor + local + no-AI-product
-    "creative_director": "director-v1.4",    # anti-AI-tell; no moodboard photo-reuse
+    "creative_director": "director-v1.5",    # anti-AI-tell; Ending Designer tool
     "prompt_translator": "shot-prompt-v1.1", # anti-AI-tell look: practical light, muted color, handheld
     "shot_agent":        "shot-agent-v0.3",  # judge calibrated; "too polished" soft signal
     "editor":            "editor-v0.5",      # rhythm profiles; ending-type aware

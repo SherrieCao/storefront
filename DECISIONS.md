@@ -313,3 +313,17 @@ no dead-silent backgrounds to fill; building it would mean sourcing a room-tone 
 Preserve-breaths (§5a) — ElevenLabs via fal exposes no explicit breaths toggle (`stability` is the only
 related knob, and changing it risks consistency); the VO compression covers the stiffness it targeted.
 **Deferred:** dedicated Ending Agent (still gated on whether the Director varies endings on its own).
+
+## D32 (SHIPPED — Ending Agent / "Batch 3"). A dedicated ending designer
+Gate met: runs 0013/0015/0016 all defaulted to a `card` ending despite full `ending_type` flexibility
+(D30), so the Director wasn't varying endings on its own — exactly the spec's trigger to build the
+agent. Built `design_ending` — a Director tool mirroring `design_hook` (`pipeline/agent/tools.py`,
+`_ENDING_SYSTEM`): the Director calls it (MANDATORY) after planning segments + voice_style, gets
+`{ending_type, on_screen_text, caption_suggestion, why}`, realizes it in the LAST segment (card with
+`card_text` / a visual beat with a `lower_third` overlay / a bare visual for callback/tag/linger), and
+copies it into the brief's new `ending` object. Lean: one Gemini call, no internal reviewer (the
+creative reviewer already checks the ending; keeps cost/latency down). Director scaffold v1.5.
+`MAX_CREATIVE_RETRIES` bumped 2→3 (the director now stacks reviewer + pacing + moodboard guards and was
+exhausting 2 retries). Editor renders all ending forms already (card; overlay via the D4 lower_third;
+callback/tag/linger leave info off-screen → caption). Verify: do endings actually vary across the next
+several runs?
