@@ -296,3 +296,20 @@ appears in >1 moodboard, regenerate with a cap (≤ `photos//2` moodboards, dist
 real_clip windows for variety). Scaffold (director-v1.4): a moodboard consumes its photos; no photo in
 two moodboards; prefer one richer moodboard + real_clip windows when photos are scarce. Majority-real
 rule unchanged (moodboards still count).
+
+## D31 (SHIPPED — anti-AI-tells Batch 2: the code-requiring items)
+The Batch-2 items from SPEC_anti_ai_tells.md that needed code (vs Batch-1's scaffold-only):
+- **`handheld_jitter` motion** — a Remotion `Jitter` wrapper (subtle per-frame micro-shake, deterministic
+  via Remotion's seeded `random` so renders reproduce) so too-perfectly-locked footage reads as real
+  phone footage. Added to `Segment.motion` (types.ts), `_MOTIONS` (editor.py), editor scaffold.
+- **`sparse` caption style** — `KineticCaption` drops function/stop words (deterministic content-word
+  filter; keeps numbers + capitalised/proper + non-stopword ≥3 chars) so the screen shows only KEY
+  words, not wall-to-wall verbatim. Added to the `caption_style` enum + editor scaffold. (Tunable — it
+  can get quite minimal; a smarter editor-selected-key-spans version is a future refinement.)
+- **Light VO compression** — `editor._compress_vo` (ffmpeg `acompressor`, gentle) on the staged voice
+  before muxing, to soften synthetic "digital stiffness." Falls back to uncompressed on error.
+**Skipped, with reasons:** room-tone layer (§6c) — we ALWAYS have a music-library bed now, so there are
+no dead-silent backgrounds to fill; building it would mean sourcing a room-tone asset for ~no benefit.
+Preserve-breaths (§5a) — ElevenLabs via fal exposes no explicit breaths toggle (`stability` is the only
+related knob, and changing it risks consistency); the VO compression covers the stiffness it targeted.
+**Deferred:** dedicated Ending Agent (still gated on whether the Director varies endings on its own).

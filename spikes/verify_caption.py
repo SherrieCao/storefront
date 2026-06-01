@@ -23,13 +23,13 @@ run = FakeRun(); run.dir.mkdir(parents=True, exist_ok=True)
 # filler visuals covering ~13s (the voice length); content doesn't matter, only the caption track does
 sources = {"a.mp4": vid, "b.png": img, "voiceover.mp3": voice}
 segs = [
-    {"type": "seedance_shot", "duration_s": 4.0, "transition_in": "hard_cut", "src": "a.mp4", "start_s": 0, "end_s": 4},
+    {"type": "seedance_shot", "duration_s": 4.0, "transition_in": "hard_cut", "src": "a.mp4", "motion": "handheld_jitter", "start_s": 0, "end_s": 4},
     {"type": "moodboard", "duration_s": 5.0, "transition_in": "hard_cut", "src": "b.png", "start_s": 4, "end_s": 9},
     {"type": "seedance_shot", "duration_s": 4.7, "transition_in": "hard_cut", "src": "a.mp4", "start_s": 9, "end_s": 13.7},
 ]
 plan = {"fps": 30, "width": 1080, "height": 1920, "segments": segs,
         "audio": {"src": "voiceover.mp3", "gain": 1.0}, "music": None,
-        "captions": [], "words": words, "caption_style": "emphasis",
+        "captions": [], "words": words, "caption_style": "sparse",
         "palette": ["#0b6e4f", "#f4c542", "#15324b"]}
 
 # print expected current word at the probe times

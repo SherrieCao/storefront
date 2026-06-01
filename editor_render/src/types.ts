@@ -9,7 +9,7 @@ export type Segment = {
   src?: string; // staticFile name for seedance_shot / real_clip / moodboard keyframe
   trim_s?: [number, number]; // real_clip trim window
   playback_rate?: number; // speed-ramp for seedance_shot / real_clip (energy)
-  motion?: 'punch_in' | 'parallax'; // kinetic treatment for video (Ken Burns is automatic on moodboard)
+  motion?: 'punch_in' | 'parallax' | 'handheld_jitter'; // kinetic treatment for video (Ken Burns is automatic on moodboard)
   overlay?: OverlaySpec; // lower-third / badge motion graphic on top of this segment
   card_template?: string; // EndCard | PriceTag | LocationPin | OfferBanner | Title
   card_text?: string;

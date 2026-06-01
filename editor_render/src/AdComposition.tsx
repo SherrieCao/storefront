@@ -1,5 +1,5 @@
 import {
-  AbsoluteFill, Audio, Img, OffthreadVideo, Sequence, interpolate,
+  AbsoluteFill, Audio, Img, OffthreadVideo, Sequence, interpolate, random,
   staticFile, useCurrentFrame, useVideoConfig,
 } from 'remotion';
 import {Caption, EditPlan, Segment} from './types';
@@ -59,9 +59,21 @@ const Pan: React.FC<{durationInFrames: number; children: React.ReactNode}> = ({d
   return <AbsoluteFill style={{transform: `scale(1.14) translateX(${x}%)`, overflow: 'hidden'}}>{children}</AbsoluteFill>;
 };
 
+// Handheld jitter: subtle per-frame micro-movement (deterministic via Remotion's seeded random, so the
+// render is reproducible) — makes too-perfectly-locked footage read as real phone footage, not AI.
+const Jitter: React.FC<{children: React.ReactNode}> = ({children}) => {
+  const frame = useCurrentFrame();
+  const A = 1.6; // px amplitude
+  const x = (random(`jx${frame}`) - 0.5) * 2 * A;
+  const y = (random(`jy${frame}`) - 0.5) * 2 * A;
+  const rot = (random(`jr${frame}`) - 0.5) * 0.6; // deg
+  return <AbsoluteFill style={{transform: `scale(1.04) translate(${x}px, ${y}px) rotate(${rot}deg)`, overflow: 'hidden'}}>{children}</AbsoluteFill>;
+};
+
 const withMotion = (seg: Segment, dur: number, child: React.ReactNode) => {
   if (seg.motion === 'punch_in') return <PunchIn durationInFrames={dur}>{child}</PunchIn>;
   if (seg.motion === 'parallax') return <Pan durationInFrames={dur}>{child}</Pan>;
+  if (seg.motion === 'handheld_jitter') return <Jitter>{child}</Jitter>;
   return child;
 };
 

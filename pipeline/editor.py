@@ -29,7 +29,7 @@ VOICE_DIR_FIT = "06_voice/voiceover_fit.mp3"
 # Transition vocabulary the Editor Agent may pick from (D4). Only crossfade overlaps; the rest are
 # in-window entrances. MUST match editor_render/src/types.ts Transition + AdComposition TransitionWrap.
 _TRANSITIONS = {"hard_cut", "crossfade", "dip_to_black", "slide", "whip", "zoom"}
-_MOTIONS = {"punch_in", "parallax"}                 # kinetic treatment for video segments (D4)
+_MOTIONS = {"punch_in", "parallax", "handheld_jitter"}   # kinetic treatment for video segments (D4 + Batch2)
 _OVERLAY_KINDS = {"lower_third", "badge"}
 _BADGE_POS = {"tl", "tr", "bl", "br"}
 _CROSSFADE_S = 0.4    # MUST match editor_render/src/AdComposition.tsx CROSSFADE_S
@@ -131,6 +131,11 @@ def render(run: Run, timeline: dict[str, Any], voice: dict[str, Any], *,
                         f"{ext['type']} to avoid clipping the CTA.")
         else:
             vstaged = vpath
+        # Light dynamic-range compression evens out the VO and kills the "digital stiffness" of synthetic
+        # speech — closer to phone-recorded voice. Subtle; falls back to the uncompressed file on error.
+        compressed = run.dir / "06_voice/voiceover_vo.mp3"
+        if _compress_vo(vstaged, str(compressed)):
+            vstaged = str(compressed)
         sources["voiceover.mp3"] = vstaged
         audio = {"src": "voiceover.mp3", "gain": 1.0}
 
@@ -388,6 +393,20 @@ def _stage(sources: dict[str, str], name: str, src: str | None) -> str:
     if src:
         sources[name] = src
     return name
+
+
+def _compress_vo(src: str, dst: str) -> bool:
+    """Light dynamic-range compression on the voiceover (ffmpeg acompressor) — softens synthetic
+    'digital stiffness' toward phone-recorded voice. Subtle (gentle ratio + makeup). Returns True on
+    success; False (caller keeps the uncompressed file) on any error."""
+    try:
+        r = subprocess.run(
+            ["ffmpeg", "-y", "-i", src,
+             "-af", "acompressor=threshold=-18dB:ratio=3:attack=15:release=180:makeup=2",
+             dst], capture_output=True, timeout=60)
+        return r.returncode == 0 and Path(dst).exists()
+    except Exception:
+        return False
 
 
 def _atempo(src: str, dst: str, tempo: float) -> None:

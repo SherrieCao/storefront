@@ -7,6 +7,8 @@
 //   clean_pop — words fade + scale in as spoken; the spoken word is white, the rest grey.
 //   emphasis  — same reveal; the spoken word is white AND pops larger (a moving emphasis).
 //   karaoke   — whole line shown at once; the spoken word is white, the rest grey + a small lift.
+//   sparse    — only the KEY words appear (function/stop words dropped), so the screen isn't wall-to-
+//               wall text; the rest is heard, not read. Often the most native-feeling for social.
 import {AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig} from 'remotion';
 
 export type Word = {w: string; start_s: number; end_s: number};
@@ -14,6 +16,21 @@ export type Word = {w: string; start_s: number; end_s: number};
 const FONT = 'Helvetica, Arial, sans-serif';
 const CHUNK = 4;   // words shown together (one line)
 const SIZE = 64;   // uniform base size — no static big words (keeps the baseline stable)
+
+// `sparse` shows only key words — drop common function/stop words + 1–2 char fillers (kept: numbers,
+// anything capitalised/proper, and any non-stopword >=3 chars). Deterministic; no LLM needed.
+const STOPWORDS = new Set([
+  'the','a','an','and','or','but','of','to','in','on','at','for','with','from','by','as','is','are','am',
+  'be','been','was','were','do','does','did','it','its','this','that','these','those','so','if','then',
+  'i','my','me','we','us','our','you','your','he','she','they','them','his','her','their','will','can',
+  'just','not','no','has','have','had','up','out','about','into','over','than','too','very','also','here',
+]);
+const isKey = (w: string): boolean => {
+  const bare = w.replace(/[^A-Za-z0-9]/g, '');
+  if (!bare) return false;
+  if (/[0-9]/.test(bare) || /[A-Z]/.test(bare)) return true;   // numbers + proper/capitalised words
+  return bare.length >= 3 && !STOPWORDS.has(bare.toLowerCase());
+};
 
 const chunk = (words: Word[], n: number): Word[][] => {
   const out: Word[][] = [];
@@ -28,7 +45,10 @@ export const KineticCaption: React.FC<{words: Word[]; style?: string; palette?: 
   const t = frame / fps;
   if (!words || words.length === 0) return null;
 
-  const groups = chunk(words, CHUNK);
+  // `sparse`: render only the key words (drop stop/filler words); other styles render every word.
+  const display = style === 'sparse' ? words.filter((w) => isKey(w.w)) : words;
+  if (display.length === 0) return null;
+  const groups = chunk(display, CHUNK);
   const active = groups.find((g) => t >= g[0].start_s - 0.15 && t < g[g.length - 1].end_s + 0.25);
   if (!active) return null;
   // Highlight by BRIGHTNESS, not brand color: the spoken word is bright white, the rest recede to grey.
