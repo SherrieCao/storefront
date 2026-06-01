@@ -355,3 +355,38 @@ accent used as text only when `lum(palette[0]) > 110`, else white — no grey-pa
 compat). Fonts reuse Inter + Caveat (no new font; stayed under the 3-font cap). `caption_style` enum +
 editor scaffold v0.6 updated; editor default → `bold_center`. Verified: all 4 render as distinct looks.
 **Still deferred:** transitions §2, motion §3 expansions (scale_breath/drift), live luminance detection.
+
+## D35 (SHIPPED — design-system Batch C + editor-loop/history/reviews spec)
+Closed the remaining design-system items + SPEC_editor_loop_topic_history_reviews in five batches.
+
+- **Batch C (transitions + motion), SPEC_remotion_design_system §2–3.** Three transitions — `speed_ramp_in`
+  (a "whoosh into place" settle; a CSS approximation since OffthreadVideo's playbackRate is static),
+  `scale_reveal` (overlap reveal scaling into place), `light_leak` (a single amber sweep, **capped to 1
+  per ad** in editor.py) — and two motions — `scale_breath` (subtle 1.0→1.03→1.0 pulse), `drift` (slow
+  diagonal pan). Crossfade 0.4→0.3s. Wired through editor.py (`_TRANSITIONS`/`_MOTIONS`/
+  `_OVERLAP_TRANSITIONS`), types.ts, AdComposition.tsx, editor.md (v0.7). Verified: tsc clean + a full
+  render exercising all five.
+
+- **Part C — review expansion.** Distiller now returns ranked `anchor_candidates[]` + `review_summary_themes`
+  (was a single `detail`; back-compat alias `detail = anchor_candidates[0]`). Added Google `reviewSummary`
+  to the field mask + a best-effort legacy newest-sort fetch (the Places API (New) has NO review-sort
+  control, so the reliable wins are the AI summary + multi-candidate distillation; the legacy widen
+  no-ops cleanly when only the New API is enabled). Per-business cache `inputs/<slug>/reviews_cache.json`
+  (TTL `REVIEW_CACHE_TTL_DAYS=7`) skips the Google fetch on repeat runs; `operator_supplied[]` never
+  expires. Concept passes `cache_key=run.business` (the slug, not the display name) + picks a fresh anchor.
+  Verified live on Conway: 4 ranked candidates (named techs, a snow-leopard design), cache hit on run 2.
+
+- **Part B — per-business topic history.** New `pipeline/history.py`: each successful run appends its
+  concept/angle/review-detail/voice-style/ending to `inputs/<business>/history.json` (idempotent on
+  run_id; refreshes past operator verdicts). Concept reads a `previous_runs` de-weight block; Director
+  reads `endings_used_past_runs`. **Soft steer, never a hard ban** — honor a brief that asks for a repeat.
+  Directly targets the observed Conway repetition (same concept + always-card ending). `ending_types_used`
+  keeps duplicates so "card, card, card" is visible.
+
+- **Part A — editor `ending` lens.** The editor critic loop + `template_feel` + varied-`rhythm` lenses
+  already shipped (D24 + D30/D31), so Part A reduced to ONE new lens: `ending` (editing_reviewer v0.4) —
+  does the ending fit `voice_style` and vary vs `endings_used_past_runs`? editor.py threads an
+  `ending_context` into the edit-review artifact. Verified: a 3rd-consecutive card on an influencer ad
+  FAILs (0.2, targeted fix); a fresh varied overlay PASSes (0.83).
+
+Repo tidy: specs consolidated under `docs/Specs/`; CLAUDE.md paths fixed.
