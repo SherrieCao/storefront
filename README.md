@@ -5,9 +5,9 @@
 > shot, scored, voiced, edited, and quality-checked. Built for the businesses that need advertising
 > most and can do it least: the salon, the bakery, the dog daycare, the nail studio down the street.
 
-The bar isn't "looks AI-made or not." The bar is the only one a small-business owner cares about:
+The bar isn't "best production or not." The bar is the only one a small-business owner cares about:
 
-> **"Would a small-business owner believe this brings them more traffic?"**
+> **"Would this bring me more customers?"**
 
 Phone calls. Walk-ins. Bookings. That's the product.
 
