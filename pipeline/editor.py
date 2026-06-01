@@ -55,12 +55,19 @@ def plan_timeline(run: Run, brief: dict[str, Any], shots_result: dict[str, Any],
 
     limits = _video_limits(usable, clips, inventory)        # {n: max display s} for video segments
     ctx = {"business": inventory.get("business", ""), "brief": inventory.get("brief", "")}
+    # Context for the reviewer's `ending` lens: does the ending fit the voice + vary across runs?
+    from . import history
+    ending_context = {
+        "voice_style": brief.get("voice_style", ""),
+        "ending_type": (brief.get("ending") or {}).get("ending_type") or brief.get("ending_type", ""),
+        "endings_used_past_runs": history.director_ending_hint(run.business) or [],
+    }
 
     # self-correcting editor critic loop: plan -> review (editing craft) -> regenerate with feedback
     fb, agent, verdict, attempts = None, {}, {}, []
     for attempt in range(1, config.MAX_CREATIVE_RETRIES + 1):
         agent = _editor_agent(run, usable, brief, limits, feedback=fb)
-        verdict = reviewers.review(run, "edit", agent, ctx)
+        verdict = reviewers.review(run, "edit", {**agent, "ending_context": ending_context}, ctx)
         attempts.append({"attempt": attempt, "passed": verdict["pass"], "scores": verdict["scores"],
                          "failed_lenses": verdict["failed_lenses"], "improvement": verdict["improvement"]})
         if verdict["pass"]:
