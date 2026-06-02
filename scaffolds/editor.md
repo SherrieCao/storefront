@@ -47,6 +47,9 @@
    - `lower_third` — an animated name/handle/location chip (e.g. "@carolsdogdaycare" / "Open 7 days").
    - `badge` — a popped corner sticker for a single punchy fact ("★4.9", "20% OFF", "WALK-INS OK"),
      `position` ∈ {tl,tr,bl,br}. Keep text ≤ ~4 words. Use 1–2 total — they punctuate, not clutter.
+   - **Before/after is handled FOR you:** when the Director places an adjacent before→after pair, the
+     pipeline stamps BEFORE/AFTER labels + a `whip` reveal on those two beats deterministically — don't
+     add your own before/after overlays or fight that pairing.
 5. **`caption_style`** (one, global) — pick the aesthetic that fits the ad; the spoken word always
    highlights (palette accent only when it's bright enough, else white):
    - `bold_center` — big Inter Black, centered, punchy. Default; high-energy/hype.

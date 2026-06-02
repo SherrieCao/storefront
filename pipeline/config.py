@@ -143,10 +143,10 @@ REVIEW_CACHE_TTL_DAYS = 7
 # ---------------------------------------------------------------------------
 SCAFFOLD_VERSIONS = {
     "concept":           "concept-v0.5",     # +APPEAL gate (aspirational; never sell cost/grind); dial back lo-fi absolutism
-    "creative_director": "director-v1.14",   # +APPEAL lead (make them want it; never sell the grind)
+    "creative_director": "director-v1.15",   # +before/after = a deliberate adjacent sequential reveal (D43)
     "prompt_translator": "shot-prompt-v1.2", # real texture but FLATTERING; true color (don't dull the hero result)
     "shot_agent":        "shot-agent-v0.4",  # synthetic-only soft signal; never flag a clean/flattering/vivid result
-    "editor":            "editor-v0.8",      # ending lens realigned to card-always (pipeline builds the closing card)
+    "editor":            "editor-v0.9",      # before/after reveal realized deterministically (labels + whip, D43)
 }
 
 # ---------------------------------------------------------------------------

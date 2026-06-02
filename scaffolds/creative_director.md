@@ -84,15 +84,19 @@ rendering mechanics; you decide WHICH segments and WHY.
 The 8 classic formats (testimonial, demo, listicle, montage, split_screen, behind_the_scenes,
 tutorial, unboxing) are TREATMENTS you draw on per segment or across the ad — not a single forced
 choice. Apply their craft (when each works, the messaging rule, the trade-off). Gates still hold:
-- **before/after framing** (split_screen before/after, or any before→after story): ONLY if
-  {{has_before_after}} is True — otherwise off the table; never build it from generated footage. When it
-  IS available, the before→after transformation is one of the STRONGEST formats (especially salon / nail
-  / cleaning / detailing) — strongly consider it.
-- **`role` on assets (before/after):** some photos in `asset_summary` carry `"role": "before"` or
-  `"after"` (the operator labeled the file). A `before` photo is a PROBLEM-STATE image — NEVER the hero
-  shot, the closing-card background, or a standalone moodboard/showcase centerpiece. Use a `before` photo
-  ONLY paired with its `after` as a transformation reveal (before → after). Feature `after` photos as the
-  hero/result. The end card / final beauty shot must be an `after` (or a neutral non-`before`) photo.
+- **before/after framing** (a before→after transformation reveal): ONLY if {{has_before_after}} is True —
+  otherwise off the table; never build it from generated footage. When it IS available, the before→after
+  transformation is one of the STRONGEST formats (especially salon / nail / cleaning / detailing) —
+  strongly consider it.
+- **`role` on assets (before/after) — build a DELIBERATE SEQUENTIAL REVEAL:** some photos in
+  `asset_summary` carry `"role": "before"` or `"after"` (the operator labeled the file). A `before` photo
+  is a PROBLEM-STATE image — NEVER the hero, the closing-card background, or a standalone showcase. It is
+  ONLY ever the SETUP half of a reveal, which means: **a `before` beat IMMEDIATELY followed by its matching
+  `after` beat** (pair by number — `before_1` → `after_1`), so the viewer plainly SEES the change. Do NOT
+  drop a lone `before` into a moodboard with the `after`s scattered elsewhere — that shows no comparison
+  and will be rejected. Put the matched before and after on ADJACENT beats; the editor labels them
+  BEFORE/AFTER and adds the reveal cut. Feature `after` photos as the hero/result; the end card / final
+  beauty shot must be an `after` (or a neutral non-`before`) photo.
 - **testimonial**: only with a real person/testimonial source. **unboxing**: only with real product
   packaging. **montage**: only with a specific angle — name the "wallpaper" failure mode and avoid it.
 

@@ -89,6 +89,7 @@ def plan_timeline(run: Run, brief: dict[str, Any], shots_result: dict[str, Any],
                     f"(score {_mean_score(verdict.get('scores', {})):.2f})")
 
     segs, sources = _build_segments(agent, by_n, clips, keyframes_map, inventory, limits)
+    _realize_before_after(run, segs, by_n, inventory)       # D43: obvious before->after sequential reveal
     _realize_ending(run, segs, sources, inventory)          # closing beat = a designed branded info card (D38)
     _fit_to_total(run, segs, target)                        # clamp + reconcile durations to target
     _snap_to_beats(run, segs, beats)                        # nudge cuts onto the music beat grid (D3)
@@ -350,7 +351,7 @@ def _build_segments(agent: dict, by_n: dict, clips: dict, keyframes_map: dict,
             else:
                 light_leak_used = True
         seg: dict[str, Any] = {"type": t, "duration_s": max(0.5, float(ps.get("duration_s") or 3)),
-                               "transition_in": trans, "_max_s": limits.get(n)}
+                               "transition_in": trans, "_max_s": limits.get(n), "_n": n}
         ov = _overlay(ps.get("overlay"))                  # lower-third / badge motion graphic (D4)
         if ov:
             seg["overlay"] = ov
@@ -447,6 +448,46 @@ def _realize_ending(run: Run, segs: list[dict], sources: dict[str, str], invento
     last["duration_s"] = config.ENDING_CARD_S
     run.log(f"Editor: ending card ({config.ENDING_CARD_S:.0f}s, clean) — {name}"
             + (f" · {' · '.join(lines)}" if lines else " (no contact info supplied)"))
+
+
+def _realize_before_after(run: Run, segs: list[dict], by_n: dict, inventory: dict) -> None:
+    """D43: when the operator gave before_/after_ photos, make the comparison OBVIOUS — a deliberate
+    SEQUENTIAL REVEAL. Find an adjacent (before-role beat -> after-role beat) pair and stamp it: a
+    'BEFORE' badge on the setup beat, an 'AFTER' badge + a `whip` reveal on the payoff beat. The Director
+    guard (_before_after_feedback) makes the pair adjacent; this realizes the label + reveal
+    deterministically so they don't depend on the (single-pass, D42) editor agent. No-op when there's no
+    adjacent before->after pair. The before/after photos are the operator's REAL assets (never faked)."""
+    if not inventory.get("has_before_after"):
+        return
+    by_path = {a["path"]: a for a in inventory.get("images", []) + inventory.get("videos", [])}
+    ref_role = {tok: by_path.get(p, {}).get("role")
+                for tok, p in _usable_assets(inventory)
+                if by_path.get(p, {}).get("role") in ("before", "after")}
+
+    def beat_role(seg: dict) -> str | None:
+        d = by_n.get(str(seg.get("_n"))) or {}
+        refs = list(d.get("moodboard_assets") or [])
+        if d.get("asset_ref"):
+            refs.append(d["asset_ref"])
+        rs = {ref_role[r] for r in refs if r in ref_role}
+        if rs == {"before"}:                       # a beat showing ONLY before photo(s) = the setup
+            return "before"
+        if "after" in rs:                          # any after photo present = the payoff/reveal
+            return "after"
+        return None
+
+    roles = [beat_role(s) for s in segs]
+    done = 0
+    for i in range(len(segs) - 1):
+        if roles[i] == "before" and roles[i + 1] == "after":
+            before_seg, after_seg = segs[i], segs[i + 1]
+            before_seg.setdefault("overlay", {"kind": "badge", "text": "BEFORE", "position": "tl"})
+            after_seg.setdefault("overlay", {"kind": "badge", "text": "AFTER", "position": "tr"})
+            if after_seg.get("transition_in") not in _OVERLAP_TRANSITIONS:
+                after_seg["transition_in"] = "whip"   # the reveal cut into the after
+            done += 1
+    if done:
+        run.log(f"Editor: before/after reveal — {done} BEFORE→AFTER pair(s) labeled + whip reveal")
 
 
 def _card_bg(inventory: dict, used_refs: set[str]) -> str | None:

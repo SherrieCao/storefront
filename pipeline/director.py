@@ -85,12 +85,14 @@ def run_director(run: Run, inventory: dict[str, Any], concept: dict[str, Any] | 
         clip_fb = _clip_reuse_feedback(run, brief, inventory)
         cov_fb = _voice_coverage_feedback(run, brief)
         persp_fb = _perspective_feedback(run, brief)
+        ba_fb = _before_after_feedback(run, brief, inventory)
         passed = (verdict["pass"] and not pace_fb and not mood_fb and not clip_fb and not cov_fb
-                  and not persp_fb)
+                  and not persp_fb and not ba_fb)
         lenses = (list(verdict["failed_lenses"]) + (["pacing_too_slow"] if pace_fb else [])
                   + (["moodboard_reuse"] if mood_fb else []) + (["clip_reuse"] if clip_fb else [])
                   + (["voice_undercovers"] if cov_fb else [])
-                  + (["first_person_mismatch"] if persp_fb else []))
+                  + (["first_person_mismatch"] if persp_fb else [])
+                  + (["before_after_not_obvious"] if ba_fb else []))
         attempts.append({"attempt": attempt, "passed": passed, "scores": verdict["scores"],
                          "failed_lenses": lenses, "improvement": verdict["improvement"]})
         cands.append((passed, _mean_score(verdict["scores"]), brief, thinking, verdict))
@@ -98,7 +100,7 @@ def run_director(run: Run, inventory: dict[str, Any], concept: dict[str, Any] | 
             break
         fb = "  ".join(p for p in (verdict["improvement"] if not verdict["pass"] else "",
                                    pace_fb or "", mood_fb or "", clip_fb or "", cov_fb or "",
-                                   persp_fb or "") if p)
+                                   persp_fb or "", ba_fb or "") if p)
         run.log(f"Director: attempt {attempt} regenerating ({lenses})")
     if not cands:
         raise RuntimeError("Director returned an empty/invalid brief after retries")
@@ -293,6 +295,52 @@ def _clip_reuse_feedback(run: Run, brief: dict[str, Any], inventory: dict[str, A
             f"beats in a row. You have {vids} video(s) + {photos} photo(s): vary the sources, interleave "
             f"with real-photo (moodboard) or seedance beats, or cut to fewer real_clips. (Different trims "
             f"of one source still count as the same footage.)")
+
+
+def _before_after_feedback(run: Run, brief: dict[str, Any], inventory: dict[str, Any]) -> str | None:
+    """Before/after guard (D43): when the operator provided before_/after_ photos, a before-role beat is
+    only valid as the SETUP half of an ADJACENT before->after REVEAL — so the transformation is obvious.
+    Fires when a 'before' beat is NOT immediately followed by an 'after' beat (the lone-'before' bug — a
+    before moodboard with the afters scattered elsewhere reads as no comparison at all). Returns regen
+    feedback; None when clean, or when no before-role beat is used (using before/after isn't forced)."""
+    if not inventory.get("has_before_after"):
+        return None
+    by_path = {a["path"]: a for a in inventory.get("images", []) + inventory.get("videos", [])}
+    ref_role = {tok: by_path.get(p, {}).get("role")
+                for tok, p in _usable_assets(inventory)
+                if by_path.get(p, {}).get("role") in ("before", "after")}
+    if "before" not in ref_role.values() or "after" not in ref_role.values():
+        return None                                   # need at least one of each to build a reveal
+
+    def beat_role(s: dict) -> str | None:
+        refs = list(s.get("moodboard_assets") or [])
+        if s.get("asset_ref"):
+            refs.append(s["asset_ref"])
+        rs = {ref_role[r] for r in refs if r in ref_role}
+        if rs == {"before"}:
+            return "before"
+        if "after" in rs:
+            return "after"
+        return None
+
+    segs = sorted(brief.get("segments", []), key=lambda s: s.get("n", 0))
+    roles = [beat_role(s) for s in segs]
+    if "before" not in roles:
+        return None
+    lone = [segs[i].get("n") for i, r in enumerate(roles)
+            if r == "before" and (i + 1 >= len(roles) or roles[i + 1] != "after")]
+    run.log(f"Director: before/after check — beat roles "
+            f"{[(s.get('n'), r) for s, r in zip(segs, roles) if r]}, lone-before {lone}")
+    if not lone:
+        return None
+    befores = sorted(t for t, r in ref_role.items() if r == "before")
+    afters = sorted(t for t, r in ref_role.items() if r == "after")
+    return (f"BEFORE/AFTER NOT OBVIOUS: beat(s) {lone} show a 'before' photo with NO matching 'after' "
+            f"right after, so the viewer never sees the change. The operator gave you before photos "
+            f"({', '.join(befores)}) and after photos ({', '.join(afters)}). Build a TRANSFORMATION "
+            f"REVEAL: place a BEFORE beat IMMEDIATELY followed by its matching AFTER beat (pair by number "
+            f"— before_1 → after_1), so the transformation is the payoff. A 'before' photo is ONLY ever "
+            f"the setup half of an adjacent before→after pair — never a lone beat or scattered b-roll.")
 
 
 def _mean_score(scores: dict) -> float:

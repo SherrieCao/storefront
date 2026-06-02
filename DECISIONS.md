@@ -528,3 +528,21 @@ reviewer, no retries). The accept-best loop + `editing_reviewer.md` are kept int
 flip the flag to re-enable. Everything downstream (the branded ending card via `_realize_ending`,
 `_fit_to_total`, beat-snap, voice-fit + caption cutoff, render) is unchanged. Concept + Director critic
 loops untouched. Revisit if single-pass editing quality proves insufficient.
+
+## D43 (SHIPPED — before/after is a deliberate, OBVIOUS sequential reveal)
+Operator (runs 0022 + 0023): the before/after comparison wasn't *consciously* built — the Director
+dropped a lone "before" moodboard with the afters scattered as generic b-roll, so the viewer never saw
+the change. Root cause: the before/after gate unlocks in triage (filenames, D11), but it never became a
+STRUCTURE — the "pair before with its after" rule was prose-only (no guard) and nothing made the
+comparison obvious on screen (no labels, no reveal cut). Fix = a deliberate **SEQUENTIAL REVEAL**
+(operator's choice over split-screen, which would need a new render component):
+- **Director** (`creative_director.md` v1.15 + `_before_after_feedback` guard): when before_/after_
+  photos exist, a `before` beat is ONLY valid as the SETUP half of an ADJACENT before→after pair (matched
+  by number, `before_1`→`after_1`). The guard fires when a before beat isn't immediately followed by an
+  after beat (the lone-before bug) and forces a regen. Using before/after isn't *forced* — but if a
+  before photo is used, the reveal must be adjacent.
+- **Editor** (`_realize_before_after`, editor-v0.9): detects the adjacent (before→after) pair via asset
+  `role` and stamps it deterministically — a BEFORE badge (tl) + an AFTER badge (tr) + a `whip` reveal cut
+  into the after beat. Built entirely from existing primitives (whip transition + badge overlays +
+  `role_from_name`); NO new Remotion component. Independent of the (disabled, D42) editor critic loop.
+The reveal uses the operator's REAL before/after photos — generated footage still never fakes one.
