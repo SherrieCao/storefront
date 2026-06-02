@@ -55,12 +55,9 @@ def plan_timeline(run: Run, brief: dict[str, Any], shots_result: dict[str, Any],
 
     limits = _video_limits(usable, clips, inventory)        # {n: max display s} for video segments
     ctx = {"business": inventory.get("business", ""), "brief": inventory.get("brief", "")}
-    # Context for the reviewer's `ending` lens: the ad always closes on a designed branded info card
-    # (D38) — judge that it's a clear, well-landed close, NOT cross-run variety (consistency is intended).
-    ending_context = {
-        "voice_style": brief.get("voice_style", ""),
-        "ending_type": (brief.get("ending") or {}).get("ending_type") or brief.get("ending_type", ""),
-    }
+    # Context for the reviewer's `ending` lens: the ad always closes on a designed branded info card the
+    # editor builds (D38/D39) — judge that the close LANDS (lead-in doesn't deflate it), not its form.
+    ending_context = {"voice_style": brief.get("voice_style", "")}
 
     # self-correcting editor critic loop: plan -> review -> regenerate. Keep the BEST attempt — a parse
     # failure can drop _editor_agent to a weak fallback, so the LAST attempt isn't necessarily the best.

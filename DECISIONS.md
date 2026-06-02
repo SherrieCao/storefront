@@ -452,3 +452,27 @@ all 3 attempts). Now:
 - **editing-reviewer v0.5**: `ending` lens reframed to "a clear branded close that lands after the
   payoff" — NO cross-run variety penalty (consistency is intended). **director-v1.12**: dropped the
   vary-the-ending hint; the closer is a consistent branded info card.
+
+## D39 (SHIPPED — scaffold consolidation: one source of truth)
+A 2-agent audit found ~180 lines of duplicated direction + one live contradiction. Consolidated:
+- **Retired the vestigial ending fields.** Since `editor._realize_ending` deterministically builds the
+  closing brand card from `brief.json` (D38), the Director's `ending_type` menu + the `design_ending`
+  tool + the `ending` output field were dead AND contradicted the code ("pick an ending form" vs. the
+  editor force-carding it). Removed all of them from `creative_director.md` + the director tool list;
+  `design_ending` left registered-but-unwired (DEPRECATED). The editor owns the ending.
+- **Killed a leftover fragmentation contradiction.** `creative_director.md` STILL told the model to
+  "write asymmetrically… trail off… leave things hanging" (the cause of the incoherent copy) even after
+  we fixed script_craft. The script-section collapse removed it; coherence-first now stands alone.
+- **De-duped perspective.** Enforced by the deterministic `_perspective_feedback` guard, so the
+  creative-reviewer's PERSPECTIVE-MISMATCH lens was removed (reviewer-v0.8) and the director scaffold
+  trimmed to one line.
+- **Slimmed `creative_director.md` 348 → ~250.** Deleted the misplaced "Point of view" section (re-gated
+  the Concept stage; the ≥half-real rule survives in Hard Rules), collapsed the 79-line script section to
+  its director-unique bits + a pointer to the injected `script_craft.md`, and trimmed the format-palette
+  restatement.
+- **Injection:** `ad_formats.md` dropped from the Concept stage (format is the Director's pick).
+- **Kept (clean):** the deterministic guards (pacing/clip/moodboard/voice/perspective), the editing-
+  reviewer `ending` lens (judges the lead-in/payoff, which the editor controls). Principle: each
+  directive stated ONCE; deterministic guards enforce the mechanical rules; reviewers judge only what
+  isn't guarded. No RULE was dropped — only de-duplicated. Versions: director-v1.13, concept-v0.4 (refs),
+  reviewer-v0.8.

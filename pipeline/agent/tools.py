@@ -193,6 +193,9 @@ Output JSON:
  "why":"one line: why this ending fits the voice + concept"}"""
 
 
+# DEPRECATED (D39): no longer wired into any agent's tool list. The EDITOR now deterministically builds
+# the closing brand card from brief.json contact (editor._realize_ending), so the Director doesn't design
+# the ending. Left registered (harmless) to avoid churn; safe to delete in a future cleanup.
 @tool("design_ending",
       "Design the final ~2-3 seconds — how the ad delivers its name/location/booking and lands. Returns "
       "{ending_type, on_screen_text, caption_suggestion, why}. Call AFTER planning segments + setting "

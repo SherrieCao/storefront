@@ -60,7 +60,7 @@ def run_director(run: Run, inventory: dict[str, Any], concept: dict[str, Any] | 
         agent_tools.set_assets(inventory)
         raw, thinking, _i, _o = run_agent_loop(
             run, "director", scaffold, model,
-            ["inspect_asset", "trend_lookup", "design_hook", "design_ending"],
+            ["inspect_asset", "trend_lookup", "design_hook"],
             user_text=json.dumps(payload, indent=2), image_paths=image_paths, video_paths=video_paths,
             max_iterations=6,
             stub=lambda: (_stub_director(inventory), "STUB thinking: no GEMINI_API_KEY set", 0, 0))
@@ -239,16 +239,15 @@ def _has_first_person_singular(text: str) -> bool:
 def _perspective_feedback(run: Run, brief: dict[str, Any]) -> str | None:
     """Perspective guard (deprioritize 1st-person). Most SMB assets are shot by a THIRD PARTY (a
     photographer filming the subject/work), so a first-person 'I / my / my-own-POV' narration reads as a
-    mismatch. Fires when the script or ending caption is first-person-singular (or narrative_person ==
+    mismatch. Fires when the script is first-person-singular (or narrative_person ==
     'first') WHILE asset_perspective != 'first_person'. None when consistent. (First-person stays valid
     for genuinely first-person/selfie footage; a REAL attributed review quote is the scaffold's exception.)"""
     ap = str(brief.get("asset_perspective") or "").strip().lower()
     np_ = str(brief.get("narrative_person") or "").strip().lower()
     script = str(brief.get("speech") or brief.get("script") or "")
-    caption = str((brief.get("ending") or {}).get("caption_suggestion") or "")
     if ap == "first_person":
         return None
-    first_person = (np_ == "first") or _has_first_person_singular(script) or _has_first_person_singular(caption)
+    first_person = (np_ == "first") or _has_first_person_singular(script)
     run.log(f"Director: perspective check — asset_perspective={ap or '?'}, narrative_person={np_ or '?'}, "
             f"first_person_text={first_person}")
     if not first_person:
