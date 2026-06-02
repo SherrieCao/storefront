@@ -476,3 +476,23 @@ A 2-agent audit found ~180 lines of duplicated direction + one live contradictio
   directive stated ONCE; deterministic guards enforce the mechanical rules; reviewers judge only what
   isn't guarded. No RULE was dropped — only de-duplicated. Versions: director-v1.13, concept-v0.4 (refs),
   reviewer-v0.8.
+
+## D40 (SHIPPED — scaffold cleanup v2: SPEC_scaffold_cleanup, adapted)
+Executed SPEC_scaffold_cleanup against the post-D37/D39 state. Skipped what was already done (the
+"relatable problem" hook — D37; the Director dedup — D39). Resolved the ending conflict as the operator's
+standing **Option B (card-always)**, NOT the spec's Option A:
+- **Fixed the STALE `editor.md`** (D39 had missed it): lens 7 said "the ad no longer always ends on a
+  card; the Director sets ending_type; don't force a card" — which contradicted the shipped
+  `_realize_ending` (always builds the card). Rewrote to card-always: the pipeline builds the closing
+  brand card; the editor animates it cleanly + lands the lead-in. (design_ending stays retired.)
+- **`ad_formats.md`:** "pick the ONE format" → a PALETTE of treatments (may combine); dropped the
+  dangling `format_reasoning`; fixed the stale moodboard row (keyframes now compose from real photos) and
+  the before/after gate note (filename prefixes also unlock it, per D11-amended).
+- **Canonical homes (dedup the files D39 didn't touch):** hook patterns → `hooks.md` (script_craft +
+  smb_verticals sections collapsed to pointers); perspective + no-CTA → Director (script_craft → pointers);
+  metronomic → editing-reviewer Rhythm lens (template_feel lens defers to it).
+- **Stale `smb_verticals.md`:** replaced the "13–15s CTA" structure with the freed-script structure
+  (hook → develop one idea → ending info CARD; no CTA in the VO); kept the Motion performance data + added
+  an `ad_formats.md` pointer.
+Versions: editor-v0.8, editing-reviewer-v0.6. Scaffolds/references only — no code. Principle holds: each
+rule stated once in its canonical home; references point, don't restate.

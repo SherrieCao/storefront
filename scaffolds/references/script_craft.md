@@ -12,15 +12,12 @@ corporate jargon, weave the info in instead of announcing it. ~30 words for 15s 
 ## Structure (battle-tested across 100k+ viral videos)
 **Hook (first ~3s) → ONE true idea, developed → end on the idea.** 80% decide in 3 seconds, so the hook
 is everything. Change something every ~5s (a beat, a tone shift, a new shot) to hold attention.
-**The spoken script does NOT carry the CTA or logistics** — name / location / hours / booking live on a
-closing CARD, not the voice-over. A spoken "book now / right off the X / open 7 days" is what makes it
-sound like an ad. Let the voice be a real person saying one true thing; let the card do the selling.
+**The spoken script does NOT carry the CTA or logistics** (the Director scaffold owns this rule) — name /
+location / hours / booking live on the closing CARD, not the voice-over. The voice says one true thing and
+ends on the idea; the card does the selling.
 
-## Perspective first (match it to the footage)
-Default to **second person** ("you…", "POV: you walk in…") or **third person** (observe/showcase the work).
-Use **first person** ("I…", "my…") ONLY when the assets are genuinely self-shot (selfie / phone-in-hand) —
-over footage someone else clearly shot, first-person reads as fake. (A real attributed review quote is the
-one exception.) Most SMB submissions are third-party-shot, so 2nd/3rd person is almost always right.
+## Perspective (the Director scaffold owns the full rule)
+Default to **2nd or 3rd person**; use 1st person ("I/my") ONLY when the assets are genuinely self-shot.
 
 ## Lead with the BENEFIT / OUTCOME — never the problem (all verticals)
 The hook and the script LEAD with the desirable result the customer wants — not the pain, fear, or
@@ -32,17 +29,9 @@ A pain point may be *touched* briefly, but only in service of the outcome — it
 never the whole hook. A fear/problem/negative LEAD is a defect (it plants the bad feeling and reads as
 desperate). This holds for every vertical.
 
-## Hook patterns (open with one; combine two for power) — all OUTCOME-framed
-- **Result-first / before-after:** open on the payoff or the transformation, then explain. (Strongest.)
-- **Second-person / POV:** "POV: you finally found a [thing] that [benefit]." / "This is your sign to…"
-- **Third-person showcase:** open on the work itself / the room / the result and let it speak.
-- **Specific-detail / local-recognition:** a true, particular fact ("Right off the 101 exit…", "We
-  proof our dough at 5am"). Specificity > superlatives.
-- **Aspiration / identity:** the version of the viewer's day/look/life this delivers ("the hair you
-  keep getting stopped about").
-- **Curiosity / educational:** "Here's how we get [the desirable result]…" — framed as the secret to
-  the OUTCOME, not "the mistake everyone makes."
-- **Mechanic anchors (from hooks.md):** newness, price, urgency, offer beat clever for local SMBs.
+## Hook patterns (see the injected `hooks.md` for the full list)
+The hook is the opening ~3s. Apply ONE mechanic from `hooks.md`, framed as an OUTCOME (the desirable
+result), never as a problem. Result-first / before-after is the strongest open.
 
 ## Sound like a person, not a press release — but COHERENCE comes first
 Write what ONE real person would actually say out loud about this place — specific, warm, conversational.

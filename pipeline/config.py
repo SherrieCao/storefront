@@ -144,7 +144,7 @@ SCAFFOLD_VERSIONS = {
     "creative_director": "director-v1.13",   # consolidated (348->~250); ending retired (editor builds card); no dup
     "prompt_translator": "shot-prompt-v1.1", # anti-AI-tell look: practical light, muted color, handheld
     "shot_agent":        "shot-agent-v0.3",  # judge calibrated; "too polished" soft signal
-    "editor":            "editor-v0.7",      # +Batch C transitions (speed_ramp_in/scale_reveal/light_leak) + motions (drift/scale_breath)
+    "editor":            "editor-v0.8",      # ending lens realigned to card-always (pipeline builds the closing card)
 }
 
 # ---------------------------------------------------------------------------

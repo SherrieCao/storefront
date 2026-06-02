@@ -84,36 +84,21 @@ Florist:
 
 ---
 
-## Hook patterns that work for local SMB
-
-Not templates — patterns. The director adapts or invents.
-
-- The specific detail hook: "Did you know [specific, surprising, real thing about this business]?"
-  Works because specificity signals authenticity.
-- The local-recognition hook: "[Neighborhood name] locals know..." or "On [Street Name]..."
-  Works because it signals this is for THEM, not a mass audience.
-- The result-first hook: Show/say the outcome before explaining what the business does.
-  "Your floors haven't looked like this in years." → cleaning service.
-- The outcome/aspiration hook (PREFERRED — lead with the result the customer wants):
-  "The hair you keep getting stopped about." → salon. Lead with the desirable outcome, NOT the
-  frustration — naming the pain ("tired of fighting your hair") plants the bad feeling and reads as
-  desperate. Frame value as the result you get, never the absence of a bad thing.
-- The scarcity/timing hook: "This weekend only" / "Last spots this month" / "Fresh until noon."
-  Works for food businesses and appointment-based services.
-- The sensory hook: Lead with a visceral sensory detail that bypasses conscious processing.
-  The sound and visual of scissors on a great haircut. A croissant being pulled apart.
+## Hook patterns
+For the full hook list, see the injected `hooks.md`. Lead with the OUTCOME, never the problem (that rule
+lives in `script_craft.md`).
 
 ---
 
-## The 15-second structure (most common, not required)
+## The ~15-second structure (most common, not required)
 
 0–2s: HOOK — stop the scroll. The most important 2 seconds.
-2–8s: BODY — 2–3 beats that build desire or trust.
-8–13s: PROOF or DETAIL — what makes you believe it.
-13–15s: CTA — the one action you want them to take. Specific. ("Book on our site" > "contact us.")
+2–12s: BODY — develop ONE idea; build desire/trust with real, specific beats.
+12–15s: ENDING — a designed info CARD (the pipeline builds it) carries name / location / contact /
+booking. The spoken script covers the hook + body and ENDS on the idea; the card does the selling
+(no CTA in the voice-over).
 
-This structure is broken intentionally for humor, ASMR, or pure atmosphere approaches.
-Know why you're breaking it.
+Break this for humor, ASMR, or pure-atmosphere approaches — know why you're breaking it.
 
 ---
 
@@ -121,7 +106,8 @@ Know why you're breaking it.
 
 > Context for the director, not rules. This is DTC/Meta data — a strong prior for what
 > creative works, but "wins on Meta" isn't identical to "gets a local business more traffic."
-> Operator review verdicts will calibrate this for our actual customers over time.
+> Operator review verdicts will calibrate this for our actual customers over time. (This is
+> performance DATA — for the per-format selection criteria, see the injected `ad_formats.md`.)
 
 **Format hit rates (how often a format produces a winner):**
 - Unboxing ~9.8%, Offer-First ~8.6%, Demo ~8.1%, Testimonial ~6.5%, Before & After (high band)

@@ -1,4 +1,4 @@
-# Editing Reviewer Scaffold (editing-reviewer-v0.5 — ending lens = clear branded close (no variety penalty))
+# Editing Reviewer Scaffold (editing-reviewer-v0.6 — ending lens = clear branded close; metronomic check deferred to Rhythm)
 
 > You critique an EDIT PLAN for a short-form social video — the timeline a deterministic renderer
 > (Remotion) will execute: segment order, per-segment durations, transitions, motion, on-screen
@@ -36,7 +36,7 @@ Does this cut like polished CREATOR content — fast, dynamic, scroll-stopping �
    does gratuitous effect-spam that fights the footage. (A lean plan that's already kinetic can still
    score high — motion graphics are a tool to earn energy, not a checkbox.)
 6. **Template feel** — does this edit read like it came from a template tool / AI editor? Check: (a)
-   cuts metronomic (same length ±0.3s across 3+ adjacent beats)? (b) captions tracking every word
+   cuts metronomic (already judged by the Rhythm lens — skip if Rhythm passed)? (b) captions tracking every word
    identically with no variation? (c) flashy transitions (whip/slide/zoom) on 3+ cuts? (d) a sudden
    branded card that feels like "and now the ad part" after natural-feeling content? **2+ of these =
    FAIL**, with specific fixes ("vary beats 3–5 lengths," "drop the second whip," "soften the ending to
