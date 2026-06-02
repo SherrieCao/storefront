@@ -84,6 +84,7 @@ def plan_timeline(run: Run, brief: dict[str, Any], shots_result: dict[str, Any],
                 f"(score {_mean_score(verdict.get('scores', {})):.2f})")
 
     segs, sources = _build_segments(agent, by_n, clips, keyframes_map, inventory, limits)
+    _realize_ending(run, segs, brief, inventory)            # closing beat MUST identify the business (name+location)
     _fit_to_total(run, segs, target)                        # clamp + reconcile durations to target
     _snap_to_beats(run, segs, beats)                        # nudge cuts onto the music beat grid (D3)
     total_s = _assign_timestamps(segs)                      # cumulative start/end (crossfade-aware)
@@ -376,6 +377,43 @@ def _overlay(o: Any) -> dict[str, Any] | None:
     if isinstance(o.get("accent"), str) and o["accent"].startswith("#"):
         out["accent"] = o["accent"]
     return out
+
+
+def _realize_ending(run: Run, segs: list[dict], brief: dict, inventory: dict) -> None:
+    """Guarantee the ad ends by identifying the business. The closing beat MUST show the load-bearing
+    info — business NAME (+ location). For a card ending we fill card_tiers; for any other ending we
+    attach a closing lower_third built from the Director's ending.on_screen_text (which already includes
+    name+location), overriding the editor agent's generic overlay ("Book Now" had dropped name+location).
+    The business name is always known (inventory), so the video never ends anonymous."""
+    if not segs:
+        return
+    name = str(inventory.get("business") or "").strip()
+    loc = str(inventory.get("location") or "").strip()
+    if not name:
+        return
+    ending = brief.get("ending") or {}
+    on_screen = str(ending.get("on_screen_text") or "").strip()
+    cta = "Book today"
+    # Prefer the Director's curated text IF it actually names the business; else compose name (+ location).
+    if on_screen and name.lower() in on_screen.lower():
+        info = on_screen
+    else:
+        base = " · ".join(p for p in (name, loc) if p)
+        info = f"{base} · {cta}" if base else name
+    info = info[:60]
+    last = segs[-1]
+    if last.get("type") == "card":
+        tiers = dict(last.get("card_tiers") or {})
+        tiers.setdefault("name", name)
+        if loc:
+            tiers.setdefault("info", loc)
+        tiers.setdefault("cta", cta)
+        last["card_tiers"] = tiers
+        if not last.get("card_text"):
+            last["card_text"] = info
+    else:                                            # overlay/callback/tag/linger → closing lower-third
+        last["overlay"] = {"kind": "lower_third", "text": info}
+    run.log(f"Editor: realized ending — closing beat identifies the business ('{info}')")
 
 
 def _card_bg(inventory: dict, used_refs: set[str]) -> str | None:

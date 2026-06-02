@@ -44,32 +44,21 @@ desperate). This holds for every vertical.
   the OUTCOME, not "the mistake everyone makes."
 - **Mechanic anchors (from hooks.md):** newness, price, urgency, offer beat clever for local SMBs.
 
-## Voice quirks that read as real (vs. ad-voice)
-- Short sentences. Address "you." Ask a question. One idea per line.
-- **Benefits, not a feature list** — how it changes the viewer's day, not "we offer X, Y, Z."
-- **Insider specifics & proper nouns** — the 101, the owner's name, the actual service — make it theirs.
-- **Restraint / white space** — leave room; don't cram. Trust the visual to carry half of it.
+## Sound like a person, not a press release — but COHERENCE comes first
+Write what ONE real person would actually say out loud about this place — specific, warm, conversational.
+Address "you," use proper nouns (the street, the owner's name, the real service), trust the visual to
+carry half of it.
 
-## Anti-patterns (these scream "local TV ad" — never write them)
-- Radio-spot voice: "Come on down to…", "For all your ___ needs", "Family-owned since 1998".
-- Hype-deck filler: "Experience the difference", "Where quality meets care", "world-class".
-- Mid-tempo info-listing: "We offer A, B, and C, conveniently located at…".
-- Generic CTA: "Call today!". Make the CTA specific and native ("tap to book", "we're walk-in Tues–Sat").
+**The #1 rule: it must be coherent.** Read it aloud — it has to land as ONE clear thought a listener
+instantly understands. Clarity beats cleverness and beats "sounding un-AI." Do NOT chop the line into
+disconnected fragments, vague gestures ("the blend… insane"), or trailing non-sequiturs to seem casual —
+that's worse than sounding tidy. A genuinely human sentence is already irregular; you don't have to break
+it on purpose.
 
-## LLM-script tells to avoid (the structural fingerprints viewers pattern-match as "written by AI")
-These make a script read as AI even when the words are fine. The top 4 (Bloomberry research, ~82% of AI text):
-1. **Tricolon / rule of three** — "Fresh ingredients. Friendly staff. Fair prices." / any three-part
-   parallel list. The single most reliable giveaway. Write **asymmetrically** instead — a fragment, a
-   longer thought, a question; uneven by design.
-2. **Hedge openers** — "It's worth noting that…", "Interestingly enough…". Kill on sight.
-3. **Em-dash balance** — "The salon — known for its balayage — is open Tuesdays." A sentence that tidily
-   parenthesizes its own context. People don't talk like that.
-4. **Resolution closers** — a final line that neatly wraps the whole thought ("And that's what makes it
-   special.", "Because at the end of the day…"). Real people trail off; let it hang.
-Also avoid the AI lexicon: "delve," "robust," "pivotal," "comprehensive," "elevate," "unlock,"
-"nestled," "It's important to note," and compulsive both-sides balance.
-**Read-aloud test:** a person mid-thought who happens to say something interesting — NOT a copywriter
-who outlined first. If every sentence is grammatically perfect and the same length, it's the tell.
+Don't write the two things that actually scream "ad": **press-release / radio-spot voice** ("Come on
+down to…", "Experience the difference", "where quality meets care", "world-class", "family-owned since
+1998") and a **rule-of-three list** ("fresh ingredients, friendly staff, fair prices"). Say one real
+thing instead of three balanced ones.
 
 ## The three voice styles (Director picks one — `voice_style`)
 Tone register, separate from perspective above. Write `social_native`/`local_ad` in 2nd or 3rd person.
