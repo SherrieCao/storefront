@@ -110,6 +110,11 @@ def render(run: Run, timeline: dict[str, Any], voice: dict[str, Any], *,
     segs = [{k: v for k, v in s.items() if not k.startswith("_")} for s in timeline["segments"]]
     sources = dict(timeline["sources"])
     video_len = float(timeline.get("total_s") or sum(s["duration_s"] for s in segs))
+    # The closing brand card plays CLEAN — the voice + captions must end before it (no overlap). Fit the
+    # VO to the region BEFORE the card, not the whole video.
+    _last = timeline["segments"][-1]
+    ending_card_s = float(_last.get("duration_s") or 0.0) if _last.get("type") == "card" else 0.0
+    vo_region = max(1.0, round(video_len - ending_card_s, 3))
 
     # Fit the voice to the video by time-stretching it (pitch-preserving), NOT by stretching the video.
     audio, captions = None, [dict(text=l["text"], start_s=l["start_s"], end_s=l["end_s"])
@@ -127,8 +132,8 @@ def render(run: Run, timeline: dict[str, Any], voice: dict[str, Any], *,
             run.log(f"[PACING WARNING] voice {voice_dur:.1f}s < 60% of the {video_len:.1f}s timeline and "
                     f"the tail isn't covered by card/moodboard beats — likely dead video at the end.")
         tempo = 1.0
-        if voice_dur > video_len + 0.1:
-            tempo = min(round(voice_dur / video_len, 3), config.VOICE_MAX_ATEMPO)
+        if voice_dur > vo_region + 0.1:                  # fit the VO to END before the clean ending card
+            tempo = min(round(voice_dur / vo_region, 3), config.VOICE_MAX_ATEMPO)
         fitted = run.dir / VOICE_DIR_FIT
         if tempo > 1.0:
             _atempo(vpath, str(fitted), tempo)
@@ -139,15 +144,16 @@ def render(run: Run, timeline: dict[str, Any], voice: dict[str, Any], *,
             words = [{"w": w["w"], "start_s": round(w["start_s"] / tempo, 3),
                       "end_s": round(w["end_s"] / tempo, 3)} for w in words]
             run.log(f"Editor: voice {voice_dur:.1f}s atempo×{tempo} -> {voice_dur/tempo:.1f}s "
-                    f"(video {video_len:.1f}s)")
+                    f"(fit before the {ending_card_s:.0f}s card; vo region {vo_region:.1f}s of {video_len:.1f}s)")
             vstaged = str(fitted)
-            # if capped (voice still longer than video), extend the last card so nothing clips
+            # if capped (voice still longer than the VO region), push the spill into the lead-IN beat
+            # before the card so the card itself stays clean.
             fitted_dur = voice_dur / tempo
-            if fitted_dur > video_len + 0.3:
-                ext = next((s for s in reversed(segs) if s["type"] in ("card", "moodboard")), segs[-1])
-                ext["duration_s"] = round(ext["duration_s"] + (fitted_dur - video_len), 2)
-                run.log(f"Editor: voice still {fitted_dur:.1f}s at atempo cap — extended closing "
-                        f"{ext['type']} to avoid clipping the CTA.")
+            if fitted_dur > vo_region + 0.3:
+                ext = next((s for s in reversed(segs[:-1]) if s["type"] in ("card", "moodboard")), segs[-2] if len(segs) > 1 else segs[-1])
+                ext["duration_s"] = round(ext["duration_s"] + (fitted_dur - vo_region), 2)
+                run.log(f"Editor: voice still {fitted_dur:.1f}s at atempo cap — extended pre-card "
+                        f"{ext['type']} so the ending card stays clean.")
         else:
             vstaged = vpath
         # Light dynamic-range compression evens out the VO and kills the "digital stiffness" of synthetic
@@ -423,7 +429,12 @@ def _realize_ending(run: Run, segs: list[dict], sources: dict[str, str], invento
     tiers.setdefault("cta_style", "pill")
     last["card_tiers"] = tiers
     last["card_text"] = " · ".join([name] + lines)    # legacy flat fallback
-    run.log(f"Editor: ending card — {name}" + (f" · {' · '.join(lines)}" if lines else " (no contact info supplied)"))
+    # Hold the card a fixed, clean ENDING_CARD_S — the voice + captions are fit to END before it (render()).
+    last["_ending"] = True
+    last["_max_s"] = None
+    last["duration_s"] = config.ENDING_CARD_S
+    run.log(f"Editor: ending card ({config.ENDING_CARD_S:.0f}s, clean) — {name}"
+            + (f" · {' · '.join(lines)}" if lines else " (no contact info supplied)"))
 
 
 def _card_bg(inventory: dict, used_refs: set[str]) -> str | None:
@@ -449,16 +460,23 @@ def _fit_to_total(run: Run, segs: list[dict], target: float) -> None:
     is short, grow extensibles up to their cap (log a shortfall if still short — don't stretch video);
     if the sum is long, shrink everything proportionally down to a floor."""
     cap_ext = config.EDITOR_MAX_EXTENSIBLE_S
-    for s in segs:
+    # The closing brand card is PINNED at ENDING_CARD_S and held out of the fit — the rest of the
+    # timeline reconciles to (target - card), so the card always plays its full, clean hold.
+    ending = next((s for s in segs if s.get("_ending")), None)
+    if ending is not None:
+        ending["duration_s"] = config.ENDING_CARD_S
+        target = max(_MIN_SEG_S, target - config.ENDING_CARD_S)
+    pool = [s for s in segs if s is not ending]
+    for s in pool:
         if s["_max_s"] is not None:                       # video — never exceed its real content
             s["duration_s"] = min(s["duration_s"], s["_max_s"])
         else:                                             # card/moodboard — short capped beat
             s["duration_s"] = min(s["duration_s"], cap_ext)
-    total = sum(s["duration_s"] for s in segs)
+    total = sum(s["duration_s"] for s in pool)
 
     if total < target - 0.05:                             # grow extensibles toward the target
         deficit = target - total
-        for s in segs:
+        for s in pool:
             if s["_max_s"] is None and deficit > 0.05:
                 add = min(cap_ext - s["duration_s"], deficit)
                 s["duration_s"] += add; deficit -= add
@@ -467,9 +485,9 @@ def _fit_to_total(run: Run, segs: list[dict], target: float) -> None:
                     f"— Director under-planned coverage; ending at the visual length (not stretching).")
     elif total > target + 0.05:                           # shrink proportionally down to the floor
         excess = total - target
-        room = sum(max(0.0, s["duration_s"] - _MIN_SEG_S) for s in segs)
+        room = sum(max(0.0, s["duration_s"] - _MIN_SEG_S) for s in pool)
         if room > 0:
-            for s in segs:
+            for s in pool:
                 s["duration_s"] -= excess * (max(0.0, s["duration_s"] - _MIN_SEG_S) / room)
     for s in segs:
         s["duration_s"] = round(s["duration_s"], 2)

@@ -114,6 +114,7 @@ MAX_SHOT_CONCURRENCY = 4             # Seedance is ~2min/gen — fan shots out c
 
 # Editor pacing + voice-fit (social-native fast cutting)
 EDITOR_MAX_EXTENSIBLE_S = 3.0        # max hold for a single card/moodboard beat (4.0->3.0, E2 faster cuts)
+ENDING_CARD_S           = 3.0        # the closing brand card holds exactly this long, CLEAN (voice+captions end before it; D38)
 EDITOR_TARGET_BEAT_S    = 1.5        # target hold per beat (2.0->1.5, E2) — punchy social cadence
 PACING_MAX_AVG_BEAT_S   = 2.2        # Director pacing guard: avg beat above this = too slow -> regen (E2)
 VIDEO_PLAYBACK_RATE     = 1.25       # speed-ramp seedance/real clips for snap (Remotion playbackRate)
