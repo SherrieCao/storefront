@@ -71,7 +71,7 @@ Florist:
   ("our chef makes the dough every morning at 5am") outperforms generic slickness.
 - Stock-feeling content: even AI-generated content can feel authentic if it's specific.
   A generic "happy family eating food" shot kills trust. A specific dish with real texture wins.
-- Overcrowding the script: 15 seconds, ~30 words. Pick ONE main point. Say it clearly.
+- Overcrowding the script: ~25–30 seconds, ~60–70 words. Pick ONE main point and develop it; say it clearly.
   The biggest mistake is trying to say everything.
 - Slow / "radio-spot" pacing: deliberate, mid-tempo cutting reads as a local TV ad, not social.
   Fast, brisk cutting + a tight script is the SOCIAL-NATIVE DEFAULT; measured pacing is the
@@ -90,11 +90,11 @@ lives in `script_craft.md`).
 
 ---
 
-## The ~15-second structure (most common, not required)
+## The ~25–30-second structure (most common, not required)
 
 0–2s: HOOK — stop the scroll. The most important 2 seconds.
-2–12s: BODY — develop ONE idea; build desire/trust with real, specific beats.
-12–15s: ENDING — a designed info CARD (the pipeline builds it) carries name / location / contact /
+2s–(end−3s): BODY — develop ONE idea across many short beats; build desire/trust with real, specific beats.
+last ~3s: ENDING — a designed info CARD (the pipeline builds it) carries name / location / contact /
 booking. The spoken script covers the hook + body and ENDS on the idea; the card does the selling
 (no CTA in the voice-over).
 

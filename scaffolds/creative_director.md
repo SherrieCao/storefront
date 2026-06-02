@@ -102,17 +102,19 @@ choice. Apply their craft (when each works, the messaging rule, the trade-off). 
 - **testimonial**: only with a real person/testimonial source. **unboxing**: only with real product
   packaging. **montage**: only with a specific angle — name the "wallpaper" failure mode and avoid it.
 
-## Total duration + PACING — fast, social-native (default ~15–20s)
-Pick `total_duration_s` between {{min_duration_s}} and {{max_duration_s}} — but **default to the SHORT
-end (~15–20s)** unless the concept truly needs more. Social ads live or die on energy.
-**CUT FAST — but VARY the rhythm.** Plan **MANY SHORT beats (8–14 segments, ~1.5–2s AVERAGE)**, not a
-few long held shots — but **never uniform same-length cuts: metronomic rhythm is the #1 AI-editing
-tell.** Specify each segment's `duration_s` with DELIBERATE variation, e.g.: a 0.8s punch → a 2.4s
-hold → 1.2s; or a cluster of 3 fast ~1.0s cuts then one held ~2.5s; or accelerating (start ~2.5s,
-tighten to ~1.0s by the end). **Adjacent beats should differ by ≥0.5s** — if your durations are all
-within ±0.3s of each other, the edit feels robotic. The Editor refines, but your plan sets the shape.
-**Hard anti-pattern: do NOT ship ~6 beats over ~18s (a ~3s average) — sluggish "local ad" cadence, it
-WILL be sent back.** Average should land ~1.5–2s; above ~2.2s = too few beats.
+## Total duration + PACING — fast, social-native (25–30s)
+Pick `total_duration_s` between {{min_duration_s}} and {{max_duration_s}} (the target is 25–30s). Even
+at this length, social ads live or die on energy, so **CUT FAST — but VARY the rhythm.** Plan **MANY
+SHORT beats (~13–18 segments, ~1.5–2s AVERAGE)**, not a few long held shots — but **never uniform
+same-length cuts: metronomic rhythm is the #1 AI-editing tell.** Specify each segment's `duration_s`
+with DELIBERATE variation, e.g.: a 0.8s punch → a 2.4s hold → 1.2s; or a cluster of 3 fast ~1.0s cuts
+then one held ~2.5s; or accelerating (start ~2.5s, tighten to ~1.0s by the end). **Adjacent beats
+should differ by ≥0.5s** — if your durations are all within ±0.3s of each other, the edit feels
+robotic. The Editor refines, but your plan sets the shape.
+**Hard anti-pattern: do NOT ship ~8 long beats over ~27s (a ~3s+ average) — sluggish "local ad"
+cadence, it WILL be sent back.** Average should land ~1.5–2s; above ~2.2s = too few beats. **If you
+genuinely lack enough distinct assets for ~13+ beats, use EVERY distinct asset you have and let holds
+run a little longer — but NEVER pad with repeats or hold one shot for 4s+.**
 - **Prefer a DISTINCT asset per beat — variety reads as energy; repetition reads as filler.** Use a
   different photo/clip/subject each beat. **Never put two beats from the same source video back-to-back**,
   and don't show the same footage twice. Only reuse a source if you've genuinely run out of distinct
@@ -134,11 +136,12 @@ fear/problem/grind LEAD is a defect; lead with what makes the viewer think "I wa
 must instantly get the offer. Don't fragment or trail off to seem casual; clarity wins.
 
 Structure: HOOK (first ~2s, stop the scroll) + the idea, developed. **The spoken script must roughly
-COVER the video** — the voice should run to ~85% of `total_duration_s`, leaving only a short (~2–3s)
-card/visual OUTRO at the end. At ≈2.4 spoken words/sec that means **~30 words @15s, ~40 @20s, ~58 @30s.**
+COVER the video** — the voice should run to ~85% of `total_duration_s`, leaving only the ~3s card OUTRO
+at the end. At ≈2.4 spoken words/sec that means **~58 words @25s, ~65 @27s, ~72 @30s.**
 A script that ends at the HALFWAY point leaves dead, silent video (just music) — the #1 thing that makes
-an ad feel unfinished. So if you pick a 15s total, write ~30 words; if your idea only needs ~15 words,
-pick a SHORTER `total_duration_s` (~10–12s) so the voice fills it. Match length to content, both ways.
+an ad feel unfinished. The target is 25–30s, so write a script that fills it: develop the ONE idea with
+1–2 concrete, specific details (a real review line, a named service, a sensory detail) rather than
+running short — you can't go below 25s, so a thin ~20-word script will leave the back half silent.
 `script_reasoning` MUST state the word count + the estimated spoken seconds vs `total_duration_s`. Don't
 pad with filler — develop the ONE idea (still no CTA/logistics); white space is fine but not half the ad.
 - **Write FLOWING speech, not a pause-heavy list.** Do NOT write a script as labeled list items read
@@ -223,23 +226,24 @@ Hard Rules below.)
 ```json
 {
   "creative_angle": "one sentence — the angle and why it fits THIS business",
-  "total_duration_s": 18,
+  "total_duration_s": 27,
   "composition_reasoning": "why this mix of segment types + this length serve the concept",
   "asset_perspective": "third_party | first_person | mixed (how the footage was SHOT — look at it)",
   "narrative_person": "second | third | first (match the assets; first ONLY if asset_perspective=first_person)",
   "voice_style": "social_native | local_ad | influencer_pov (influencer_pov only if first_person assets)",
   "voice_style_reasoning": "why this voice + perspective fit THIS business + the assets",
-  "script": "the full spoken script — HOOK + ONE idea, NO CTA/logistics; must ~cover the video (~30 words @15s, ~58 @30s)",
+  "script": "the full spoken script — HOOK + ONE idea, NO CTA/logistics; must ~cover the video (~58 words @25s, ~72 @30s)",
   "script_reasoning": "the hook tactic, the word count, and why every word earns its place; confirm there's NO spoken CTA/logistics (the card carries that)",
   "speech": "the exact line(s) spoken aloud (= script unless you trim)",
   "segments": [
-    {"n": 1, "type": "seedance_shot", "duration_s": 4, "intent": "...", "why": "...",
+    {"n": 1, "type": "seedance_shot", "duration_s": 1.8, "intent": "...", "why": "...",
      "action": "one verb", "camera": "one move", "asset_ref": "@Image1"},
-    {"n": 2, "type": "real_clip", "duration_s": 4, "intent": "...", "why": "...",
-     "clip_ref": "@Video1", "trim_s": [0, 4]},
-    {"n": 3, "type": "moodboard", "duration_s": 6, "intent": "...", "why": "...",
-     "moodboard_assets": ["@Image1", "@Image2", "@Image3"]},
-    {"n": 4, "type": "card", "duration_s": 3, "intent": "closing beat (carries the selling)", "why": "...",
+    {"n": 2, "type": "real_clip", "duration_s": 1.5, "intent": "...", "why": "...",
+     "clip_ref": "@Video1", "trim_s": [0, 1.5]},
+    {"n": 3, "type": "moodboard", "duration_s": 2.5, "intent": "...", "why": "...",
+     "moodboard_assets": ["@Image2", "@Image3"]},
+    {"n": "…", "type": "(plan ~13–18 short beats total, durations summing to total_duration_s)", "duration_s": 0},
+    {"n": 99, "type": "card", "duration_s": 3, "intent": "closing beat (carries the selling)", "why": "...",
      "card_style": "glass", "card_tiers": {"name": "Carol's Dog Daycare", "tagline": "the 8am highlight of your dog's day",
         "info": "Right off the 101 · Open 7–7", "cta": "Book today", "cta_style": "pill"}}
   ],

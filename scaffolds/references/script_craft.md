@@ -8,7 +8,7 @@
 The best short-form scripts **don't sound like scripts** — they sound like a real person talking to
 one viewer. Sound real, not corporate — but it's still an ad: keep it APPEALING and clear (make them
 WANT the result). Talk TO the viewer ("you"), short conversational sentences, no corporate jargon, weave
-the info in instead of announcing it. ~30 words for 15s — say ONE thing well.
+the info in instead of announcing it. ~58–72 words for 25–30s — develop ONE thing well.
 
 ## Structure (battle-tested across 100k+ viral videos)
 **Hook (first ~3s) → ONE true idea, developed → end on the idea.** 80% decide in 3 seconds, so the hook
