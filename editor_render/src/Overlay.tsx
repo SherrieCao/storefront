@@ -40,14 +40,15 @@ export const OverlayLayer: React.FC<{overlay: OverlaySpec; palette?: string[]}> 
     );
   }
 
-  // badge — a popped circular sticker, slight tilt
+  // badge — a popped circular sticker, slight tilt. Sized so short labels (BEFORE / AFTER / ★4.9)
+  // fit comfortably on one line (was 150px/38px — too small, text clipped).
   const pop = interpolate(s, [0, 1], [0.4, 1]);
   return (
     <AbsoluteFill style={corner(overlay.position)}>
       <div style={{transform: `scale(${pop}) rotate(-7deg)`, opacity, backgroundColor: accent,
-        color: '#fff', fontWeight: 900, fontSize: 38, fontFamily: FONT, width: 150, height: 150,
+        color: '#fff', fontWeight: 900, fontSize: 42, fontFamily: FONT, width: 230, height: 230,
         borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        textAlign: 'center', lineHeight: 1.05, padding: 12, border: '5px solid rgba(255,255,255,0.92)',
+        textAlign: 'center', lineHeight: 1.05, padding: 18, border: '6px solid rgba(255,255,255,0.92)',
         boxShadow: '0 8px 22px rgba(0,0,0,0.5)'}}>
         {overlay.text}
       </div>
