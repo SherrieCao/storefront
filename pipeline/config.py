@@ -140,7 +140,7 @@ REVIEW_CACHE_TTL_DAYS = 7
 # ---------------------------------------------------------------------------
 SCAFFOLD_VERSIONS = {
     "concept":           "concept-v0.4",     # +benefit/outcome-led angle (never lead on the problem/fear)
-    "creative_director": "director-v1.11",   # coherence-first script; ending must name+locate the business
+    "creative_director": "director-v1.12",   # ending = consistent branded info card (no vary pressure)
     "prompt_translator": "shot-prompt-v1.1", # anti-AI-tell look: practical light, muted color, handheld
     "shot_agent":        "shot-agent-v0.3",  # judge calibrated; "too polished" soft signal
     "editor":            "editor-v0.7",      # +Batch C transitions (speed_ramp_in/scale_reveal/light_leak) + motions (drift/scale_breath)

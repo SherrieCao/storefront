@@ -70,8 +70,12 @@ const Tagline: React.FC<{t?: string; palette?: string[]; align?: any; shadow?: b
 const Info: React.FC<{t?: string; align?: any; shadow?: boolean}> = ({t, align = 'center', shadow}) => {
   if (!t) return null;
   const e = useStagger(12);
+  const lines = t.split('\n').map((l) => l.trim()).filter(Boolean);   // address / phone / social stack
   return <div style={{fontFamily: INTER, fontWeight: 500, fontSize: 30, color: 'rgba(255,255,255,0.72)',
-    lineHeight: 1.3, textAlign: align, opacity: e.opacity, textShadow: shadow ? SHADOW : undefined}}>{t}</div>;
+    lineHeight: 1.35, textAlign: align, opacity: e.opacity, textShadow: shadow ? SHADOW : undefined,
+    display: 'flex', flexDirection: 'column', gap: 4, alignItems: align === 'center' ? 'center' : 'flex-start'}}>
+    {lines.map((l, i) => <div key={i}>{l}</div>)}
+  </div>;
 };
 const Cta: React.FC<{t?: string; ctaStyle?: string; palette?: string[]; shadow?: boolean}> =
   ({t, ctaStyle = 'pill', palette, shadow}) => {

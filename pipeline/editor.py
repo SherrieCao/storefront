@@ -55,12 +55,11 @@ def plan_timeline(run: Run, brief: dict[str, Any], shots_result: dict[str, Any],
 
     limits = _video_limits(usable, clips, inventory)        # {n: max display s} for video segments
     ctx = {"business": inventory.get("business", ""), "brief": inventory.get("brief", "")}
-    # Context for the reviewer's `ending` lens: does the ending fit the voice + vary across runs?
-    from . import history
+    # Context for the reviewer's `ending` lens: the ad always closes on a designed branded info card
+    # (D38) — judge that it's a clear, well-landed close, NOT cross-run variety (consistency is intended).
     ending_context = {
         "voice_style": brief.get("voice_style", ""),
         "ending_type": (brief.get("ending") or {}).get("ending_type") or brief.get("ending_type", ""),
-        "endings_used_past_runs": history.director_ending_hint(run.business) or [],
     }
 
     # self-correcting editor critic loop: plan -> review -> regenerate. Keep the BEST attempt — a parse
@@ -84,7 +83,7 @@ def plan_timeline(run: Run, brief: dict[str, Any], shots_result: dict[str, Any],
                 f"(score {_mean_score(verdict.get('scores', {})):.2f})")
 
     segs, sources = _build_segments(agent, by_n, clips, keyframes_map, inventory, limits)
-    _realize_ending(run, segs, brief, inventory)            # closing beat MUST identify the business (name+location)
+    _realize_ending(run, segs, sources, inventory)          # closing beat = a designed branded info card (D38)
     _fit_to_total(run, segs, target)                        # clamp + reconcile durations to target
     _snap_to_beats(run, segs, beats)                        # nudge cuts onto the music beat grid (D3)
     total_s = _assign_timestamps(segs)                      # cumulative start/end (crossfade-aware)
@@ -379,41 +378,52 @@ def _overlay(o: Any) -> dict[str, Any] | None:
     return out
 
 
-def _realize_ending(run: Run, segs: list[dict], brief: dict, inventory: dict) -> None:
-    """Guarantee the ad ends by identifying the business. The closing beat MUST show the load-bearing
-    info — business NAME (+ location). For a card ending we fill card_tiers; for any other ending we
-    attach a closing lower_third built from the Director's ending.on_screen_text (which already includes
-    name+location), overriding the editor agent's generic overlay ("Book Now" had dropped name+location).
-    The business name is always known (inventory), so the video never ends anonymous."""
+def _realize_ending(run: Run, segs: list[dict], sources: dict[str, str], inventory: dict) -> None:
+    """The ad ALWAYS ends on a consistent, DESIGNED branded info card (D38). The closing beat is made a
+    `card` (converted if it isn't) carrying: business NAME + a multi-line info block (address / phone /
+    social, whatever the operator supplied — never fabricated) + a booking CTA. Consistent branding is
+    the point, so there's no cross-run variety pressure. The name is always known, so the ad never ends
+    anonymous."""
     if not segs:
         return
     name = str(inventory.get("business") or "").strip()
-    loc = str(inventory.get("location") or "").strip()
     if not name:
         return
-    ending = brief.get("ending") or {}
-    on_screen = str(ending.get("on_screen_text") or "").strip()
-    cta = "Book today"
-    # Prefer the Director's curated text IF it actually names the business; else compose name (+ location).
-    if on_screen and name.lower() in on_screen.lower():
-        info = on_screen
-    else:
-        base = " · ".join(p for p in (name, loc) if p)
-        info = f"{base} · {cta}" if base else name
-    info = info[:60]
+    contact = inventory.get("contact") or {}
+    address = str(contact.get("address") or inventory.get("location") or "").strip()
+    if not address:                                  # last resort: the address Places matched (already fetched)
+        try:
+            address = str(json.loads((run.dir / "01_research.json").read_text())
+                          .get("matched_address") or "").strip()
+        except Exception:
+            address = ""
+    lines = [s for s in (address, contact.get("phone"), contact.get("social")) if s]
+    info = "\n".join(lines)                           # stacked lines on the card (Cards.tsx splits on \n)
+    booking = contact.get("booking_url")
+    cta = "Book today" if booking else ("Visit us" if not lines else "Book today")
+
     last = segs[-1]
-    if last.get("type") == "card":
-        tiers = dict(last.get("card_tiers") or {})
-        tiers.setdefault("name", name)
-        if loc:
-            tiers.setdefault("info", loc)
-        tiers.setdefault("cta", cta)
-        last["card_tiers"] = tiers
-        if not last.get("card_text"):
-            last["card_text"] = info
-    else:                                            # overlay/callback/tag/linger → closing lower-third
-        last["overlay"] = {"kind": "lower_third", "text": info}
-    run.log(f"Editor: realized ending — closing beat identifies the business ('{info}')")
+    if last.get("type") != "card":                    # convert the closing beat into a designed card
+        last["type"] = "card"
+        bg = _card_bg(inventory, set())               # a real after/neutral photo keeps the result on screen
+        if bg:
+            last["card_style"] = "photo_backed"
+            last["bg_src"] = _stage(sources, f"endcard{Path(bg).suffix}", bg)
+        else:
+            last["card_style"] = "glass"              # palette gradient when no photo is free
+        last["card_animation"] = last.get("card_animation") or "scale_pop"
+        last.pop("motion", None); last.pop("playback_rate", None); last.pop("overlay", None)
+    else:
+        last.setdefault("card_style", "glass")
+    tiers = dict(last.get("card_tiers") or {})
+    tiers["name"] = name
+    if info:
+        tiers["info"] = info
+    tiers.setdefault("cta", cta)
+    tiers.setdefault("cta_style", "pill")
+    last["card_tiers"] = tiers
+    last["card_text"] = " · ".join([name] + lines)    # legacy flat fallback
+    run.log(f"Editor: ending card — {name}" + (f" · {' · '.join(lines)}" if lines else " (no contact info supplied)"))
 
 
 def _card_bg(inventory: dict, used_refs: set[str]) -> str | None:

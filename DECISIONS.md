@@ -435,3 +435,20 @@ active). Verified: unit guard (6 cases), reviewer (1st-person FAILs / 2nd passes
   standalone showcase (use only paired as a transformation) and promotes the before→after reveal;
   `editor.py` `_card_bg` excludes `before` photos from the card hero (a "before" had landed behind the
   CTA card).
+
+## D38 (SHIPPED — amends D35: the ad always ends on a consistent branded info card)
+Operator: ending-type **consistency is good branding**, and the close must be a CLEAR designed card with
+the real business info. So the D35 cross-run ending-*variety* enforcement is REMOVED — it also made the
+editor loop unwinnable (the editor reviewer's `ending` lens penalized repeating the prior run's
+`ending_type`, but `ending_type` is the Director's decision; the editor can only retime, so it failed
+all 3 attempts). Now:
+- **`editor._realize_ending`** ALWAYS makes the closing beat a designed `card` (converts it; `photo_backed`
+  over a real after/neutral photo, else `glass`) carrying `card_tiers`: NAME + a multi-line `info` block
+  (address / phone / social — whatever the operator supplied) + a booking CTA. Deterministic, so the
+  ending never depends on the Director/editor-agent remembering. Never fabricated (name is the floor).
+- **Contact is operator-provided** via OPTIONAL `brief.json` fields (`address`, `phone`, `social`,
+  `booking_url`); minimum input stays `{name, location, brief}`. No Places contact-fetch. `inventory["contact"]`.
+- **`Cards.tsx`** `info` tier now renders `\n`-split stacked lines (address / phone / social).
+- **editing-reviewer v0.5**: `ending` lens reframed to "a clear branded close that lands after the
+  payoff" — NO cross-run variety penalty (consistency is intended). **director-v1.12**: dropped the
+  vary-the-ending hint; the closer is a consistent branded info card.

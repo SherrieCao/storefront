@@ -127,21 +127,27 @@ def extract_palette(image_path: str, k: int = 4) -> list[str]:
 
 
 @traced_tool
-def _load_brief(snap, fallback_business: str) -> tuple[str, str, str]:
+def _load_brief(snap, fallback_business: str) -> tuple[str, str, str, dict[str, str]]:
     """Input contract: prefer `brief.json` {name, location, brief}; fall back to free-text `brief.txt`
     (+ the --business label as the name). `name` gives the research lookup a clean business name;
-    `location` disambiguates it; `brief` is the free-text creative ask (carries everything else)."""
+    `location` disambiguates it; `brief` is the free-text creative ask (carries everything else).
+    OPTIONAL contact fields (for the closing info card; operator-provided, never fabricated):
+    `address`, `phone`, `social` (handle or website), `booking_url`. Returns (name, location, brief,
+    contact-dict-of-nonempty-fields)."""
     bj = snap / "brief.json"
     if bj.exists():
         try:
             d = json.loads(bj.read_text())
+            contact = {k: str(d.get(k) or "").strip()
+                       for k in ("address", "phone", "social", "booking_url")}
+            contact = {k: v for k, v in contact.items() if v}
             return (str(d.get("name") or fallback_business).strip(),
                     str(d.get("location") or "").strip(),
-                    str(d.get("brief") or "").strip())
+                    str(d.get("brief") or "").strip(), contact)
         except Exception:
             pass
     txt = (snap / "brief.txt").read_text().strip() if (snap / "brief.txt").exists() else ""
-    return fallback_business, "", txt
+    return fallback_business, "", txt, {}
 
 
 def role_from_name(name: str) -> str | None:
@@ -234,11 +240,11 @@ def run_triage(run: Run, input_dir: Path, *, use_cache: bool = False) -> dict[st
         a["role"] = role_from_name(p.name)        # before/after from the operator's filename, or None
     vid_assessments = [assess_video(str(p)) for p in videos]
 
-    biz_name, location, brief = _load_brief(snap, run.business)
+    biz_name, location, brief, contact = _load_brief(snap, run.business)
     ba = parse_before_after(brief, [p.name for p in photo_paths])
 
     inventory = {
-        "business": biz_name, "location": location, "brief": brief,
+        "business": biz_name, "location": location, "brief": brief, "contact": contact,
         "has_logo": logo is not None, "logo_path": logo, "palette": palette,
         "images": img_assessments, "videos": vid_assessments,
         "has_before_after": ba["has_before_after"], "before_after_source": ba["source"],

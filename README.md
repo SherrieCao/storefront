@@ -190,8 +190,13 @@ cp .env.example .env   # add ANTHROPIC_API_KEY, GEMINI_API_KEY, FAL_KEY, GOOGLE_
 
 ```json
 { "name": "Hue Hair Salon", "location": "San Francisco, CA",
-  "brief": "San Francisco's top color specialist — balayage, highlights, fresh cuts." }
+  "brief": "San Francisco's top color specialist — balayage, highlights, fresh cuts.",
+
+  "address": "1712 Fillmore St, SF",   "phone": "(415) 555-0123",
+  "social": "@huehair",                "booking_url": "huehair.com/book" }
 ```
+Only `name`, `location`, and `brief` are required. The optional `address` / `phone` / `social` /
+`booking_url` are shown on the closing brand card (operator-provided only — never fabricated).
 
 ---
 
