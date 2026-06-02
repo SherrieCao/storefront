@@ -19,9 +19,10 @@
 | **moodboard** | Varied/scattered asset pile, no single strong hero clip; a designed composition beats a sequence | Aspirational / lifestyle | ONE composed scene (cutouts on a styled surface, single camera move) — not cuts; plan a `composition`, not `shots` | Composed by the keyframe stage (Nano Banana) SEEDED FROM the real photos (generate-from-real); still a generated composition — prefer a `real_clip` when exact subject likeness is critical. |
 
 ## Cross-format principle
-**Authenticity beats polish.** Across every format above, lower-fi authentic execution out-performs
-glossy production. For a local business, a real phone-shot moment of the actual owner/space/product
-usually beats a polished generated montage. "Cinematic commercial" gloss reads as AI and as an ad.
+**Real beats fake-glossy — but it's still an ad, so make it APPEALING.** A real moment of the actual
+owner/space/product out-reads a generic AI montage, and "cinematic-commercial" gloss reads as AI. BUT
+"authentic" means real + specific — NOT low-effort, unflattering, or unappealing. Show the result at its
+BEST and make the viewer want it. Real texture in SERVICE of desire, not instead of it.
 
 ## Availability (per run)
 - Always available: demo, listicle, montage, moodboard, behind_the_scenes, tutorial, split_screen

@@ -140,10 +140,10 @@ REVIEW_CACHE_TTL_DAYS = 7
 # Scaffold versions (stamped into meta.json)
 # ---------------------------------------------------------------------------
 SCAFFOLD_VERSIONS = {
-    "concept":           "concept-v0.4",     # +benefit/outcome-led angle (never lead on the problem/fear)
-    "creative_director": "director-v1.13",   # consolidated (348->~250); ending retired (editor builds card); no dup
-    "prompt_translator": "shot-prompt-v1.1", # anti-AI-tell look: practical light, muted color, handheld
-    "shot_agent":        "shot-agent-v0.3",  # judge calibrated; "too polished" soft signal
+    "concept":           "concept-v0.5",     # +APPEAL gate (aspirational; never sell cost/grind); dial back lo-fi absolutism
+    "creative_director": "director-v1.14",   # +APPEAL lead (make them want it; never sell the grind)
+    "prompt_translator": "shot-prompt-v1.2", # real texture but FLATTERING; true color (don't dull the hero result)
+    "shot_agent":        "shot-agent-v0.4",  # synthetic-only soft signal; never flag a clean/flattering/vivid result
     "editor":            "editor-v0.8",      # ending lens realigned to card-always (pipeline builds the closing card)
 }
 

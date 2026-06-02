@@ -170,6 +170,11 @@ def render(run: Run, timeline: dict[str, Any], voice: dict[str, Any], *,
         return any(a <= mid < b for a, b in card_windows)
     captions = [c for c in captions if not _over_card(c)]
     words = [w for w in words if not _over_card(w)]
+    # HARD cutoff at the closing card's start: a caption's fade-out / keyword linger renders PAST its
+    # end_s (KineticCaption holds a group ~0.25s, sparse_keyword ~1.2s), which bleeds the last word into
+    # the clean card. The renderer hides any caption at/after this time so the card stays clean.
+    last_seg = timeline["segments"][-1]
+    caption_cutoff_s = float(last_seg.get("start_s")) if last_seg.get("type") == "card" else None
 
     # Music bed: a second audio track ducked UNDER the voice (low gain when there's a VO, fuller if
     # there's none so the ad still carries). Beatoven generated it ≈ the timeline length.
@@ -184,6 +189,7 @@ def render(run: Run, timeline: dict[str, Any], voice: dict[str, Any], *,
                    "segments": segs, "audio": audio, "music": music_track,
                    "captions": captions, "words": words,
                    "caption_style": timeline.get("caption_style", "bold_center"),
+                   "caption_cutoff_s": caption_cutoff_s,   # hide captions at/after the closing card
                    "palette": timeline.get("palette", [])}
     (run.dir / EDIT_PLAN_FILE).write_text(json.dumps(
         {"plan": render_plan, "total_s": timeline["total_s"], "reasoning": timeline.get("reasoning", "")},

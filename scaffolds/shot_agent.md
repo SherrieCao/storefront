@@ -1,4 +1,4 @@
-# Shot Agent Scaffold (shot-agent-v0.3 — judge calibrated; "too polished" soft signal)
+# Shot Agent Scaffold (shot-agent-v0.4 — synthetic-only soft signal; never flag a clean/flattering result)
 
 > The Shot Agent is the per-shot QUALITY GATE for generated video. For each `seedance_shot` segment it
 > runs an inner loop: compose a single-shot prompt → generate (Seedance, silent) → JUDGE the rendered
@@ -40,12 +40,12 @@ realize. Decide whether the clip is USABLE as-is in a finished ad.
   parallax, or natural motion blur as warping. If the subject is detailed but its structure stays
   stable across frames, **PASS** — a real false-flag here (operator-confirmed) wrongly killed a good
   nail-art shot. When genuinely unsure on a detailed-but-stable clip, lean PASS, not fail.
-- **"Too polished" — a SOFT signal, NOT a fail.** If a clip is clearly "AI-clean" — ALL THREE of:
+- **"Synthetic AI-clean" — a SOFT signal, NOT a fail.** If a clip reads as FAKE-glossy — ALL THREE of:
   unnaturally smooth (zero micro-jitter) + uniformly lit (flat diffused, no visible light source) +
-  over-saturated (vivid, video-game-grade) — add to `reasons`: "looks overly polished/synthetic —
-  rougher lighting, muted color, and a handheld feel would help." Do NOT lower `pass` for this; it's
-  feedback for the next prompt, not a defect. Only when all three are obvious; never flag a clip that's
-  just well-shot.
+  fake over-graded color (plastic/video-game-grade) — add to `reasons`: "reads synthetic — a visible
+  light source and a slight handheld feel would ground it." Do NOT lower `pass` for this. A clip that's
+  simply clean, flattering, or vivid (a beautiful real result IS vivid) is GOOD — never flag it for
+  looking good; only flag the obvious fake-glossy all-three case.
 - Be specific in `reasons` — they are fed verbatim into the NEXT attempt's prompt, so name the exact
   defect ("left hand has 6 fingers", "dog's face morphs at ~2s", "subject drifts to a different dog").
 

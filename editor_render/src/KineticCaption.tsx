@@ -20,7 +20,7 @@ const INTER = loadInter('normal', {weights: ['500', '700', '900']}).fontFamily;
 const CAVEAT = loadCaveat('normal', {weights: ['700']}).fontFamily;
 
 export type Word = {w: string; start_s: number; end_s: number};
-type Props = {words: Word[]; style?: string; palette?: string[]};
+type Props = {words: Word[]; style?: string; palette?: string[]; cutoffS?: number | null};
 
 // --- shared helpers --------------------------------------------------------
 const lum = (hex?: string): number => {
@@ -161,11 +161,22 @@ const SparseKeyword: React.FC<Props> = ({words, palette}) => {
 };
 
 // --- router ----------------------------------------------------------------
-export const KineticCaption: React.FC<Props> = ({words, style = 'bold_center', palette}) => {
+export const KineticCaption: React.FC<Props> = ({words, style = 'bold_center', palette, cutoffS}) => {
   if (!words || words.length === 0) return null;
-  if (style === 'minimal_lower') return <MinimalLower words={words} palette={palette} />;
-  if (style === 'handwritten') return <Handwritten words={words} palette={palette} />;
-  if (style === 'sparse' || style === 'sparse_keyword') return <SparseKeyword words={words} palette={palette} />;
-  // clean_pop | emphasis | karaoke | bold_center
-  return <BoldCenter words={words} style={style} palette={palette} />;
+  return <CaptionCutoff cutoffS={cutoffS}>{
+    style === 'minimal_lower' ? <MinimalLower words={words} palette={palette} />
+    : style === 'handwritten' ? <Handwritten words={words} palette={palette} />
+    : (style === 'sparse' || style === 'sparse_keyword') ? <SparseKeyword words={words} palette={palette} />
+    : <BoldCenter words={words} style={style} palette={palette} />   /* clean_pop | emphasis | karaoke | bold_center */
+  }</CaptionCutoff>;
 };
+
+// Hard cutoff: render nothing once the closing card begins, so a caption's fade-out / keyword linger
+// (which draws PAST its end_s) can't bleed onto the clean ending card.
+const CaptionCutoff: React.FC<{cutoffS?: number | null; children: React.ReactNode}> = ({cutoffS, children}) => {
+  const {fps} = useVideoConfig();
+  const t = useCurrentFrame() / fps;
+  if (cutoffS != null && t >= cutoffS) return null;
+  return <>{children}</>;
+};
+

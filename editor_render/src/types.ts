@@ -34,6 +34,7 @@ export type EditPlan = {
   captions?: Caption[];
   words?: Word[]; // word-level timings for kinetic captions
   caption_style?: string; // clean_pop | emphasis
+  caption_cutoff_s?: number | null; // hide captions at/after this time (the closing card's start)
   palette?: string[]; // brand palette hex colors (card accents)
 };
 

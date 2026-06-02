@@ -113,10 +113,11 @@ const renderSegment = (seg: Segment, durationInFrames: number, palette?: string[
 
 // --- caption track ---------------------------------------------------------
 
-const CaptionTrack: React.FC<{captions: Caption[]}> = ({captions}) => {
+const CaptionTrack: React.FC<{captions: Caption[]; cutoffS?: number | null}> = ({captions, cutoffS}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const t = frame / fps;
+  if (cutoffS != null && t >= cutoffS) return null;        // clean closing card — no caption over it
   const active = captions.find((c) => t >= c.start_s && t < c.end_s);
   if (!active) return null;
   return (
@@ -160,8 +161,8 @@ export const AdComposition: React.FC<{plan: EditPlan}> = ({plan}) => {
         </Sequence>
       ))}
       {plan.words && plan.words.length > 0
-        ? <KineticCaption words={plan.words} style={plan.caption_style} palette={plan.palette} />
-        : (plan.captions && plan.captions.length > 0 ? <CaptionTrack captions={plan.captions} /> : null)}
+        ? <KineticCaption words={plan.words} style={plan.caption_style} palette={plan.palette} cutoffS={plan.caption_cutoff_s} />
+        : (plan.captions && plan.captions.length > 0 ? <CaptionTrack captions={plan.captions} cutoffS={plan.caption_cutoff_s} /> : null)}
       {plan.music && <Audio src={staticFile(plan.music.src)} volume={plan.music.gain ?? 0.18} />}
       {plan.audio && <Audio src={staticFile(plan.audio.src)} volume={plan.audio.gain ?? 1} />}
     </AbsoluteFill>

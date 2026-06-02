@@ -496,3 +496,26 @@ standing **Option B (card-always)**, NOT the spec's Option A:
   an `ad_formats.md` pointer.
 Versions: editor-v0.8, editing-reviewer-v0.6. Scaffolds/references only — no code. Principle holds: each
 rule stated once in its canonical home; references point, don't restate.
+
+## D41 (SHIPPED — APPEAL gate + dial back authenticity absolutism; caption-tail fix)
+Run 0022's angle ("7 hours in the salon chair as proof of dedication") was UNAPPEALING — the Concept's
+own why_bold admitted it bet on "reframing a friction point as a premium benefit," and it picked the
+least-desirable of 4 review anchors. Root cause: no appeal/desirability gate, and the "authenticity beats
+polish / lo-fi wins" language was absolute (so "authentic" licensed an unappealing, grind-focused message).
+- **New APPEAL gate** (it's an ad — make them WANT it): concept gate #4 + director script + creative
+  reviewer lens 2 now require an aspirational angle and FAIL any angle that sells the COST/EFFORT/TIME/
+  friction ("7 hours in the chair", "the wait", "the hard work") even framed as "dedication." Concept now
+  picks the most DESIRABLE review anchor (the result the customer wants), not the most impressive-to-the-
+  business one.
+- **Dialed back the authenticity absolutism** (rebalance, not remove): the canonical "Cross-format
+  principle" (ad_formats.md) + reviewer bar + concept #5 + script_craft core-truth now say "real beats
+  fake-glossy, BUT it's an ad — make it appealing + show the result at its best; authentic = real +
+  specific, not low-effort/unflattering." Notably fixed prompt_translator's "muted color, NEVER vivid"
+  (counterproductive for a color salon) → "true color, don't dull the hero result"; and shot_agent's
+  "too polished" → "synthetic-only; never flag a clean/flattering/vivid result." Real footage stays the
+  spine (no fake-glossy-AI, no generated actual-product) — only the LANGUAGE balance changed.
+- **Caption-tail bug:** KineticCaption draws a caption PAST its end_s (group +0.25s; sparse_keyword
+  +1.2s), bleeding the last word ~0.5s into the clean ending card. Added a hard `caption_cutoff_s` (=the
+  card's start) threaded editor.py → render plan → AdComposition → KineticCaption + CaptionTrack: render
+  nothing at/after the card. No VO-coverage loss.
+Versions: concept-v0.5, director-v1.14, reviewer-v0.9, shot-prompt-v1.2, shot-agent-v0.4.
