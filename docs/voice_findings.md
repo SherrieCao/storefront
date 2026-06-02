@@ -7,6 +7,23 @@
 timestamps via fal and padded a time-list script to 25.5s (run 0003's 15s-card bug). ElevenLabs gives
 word/character timestamps AND paces naturally.
 
+## Voice ROUTING (operator policy, 2026-06-02) — `pipeline/voice.py _select_voice`
+The flat default ("Rachel" @ stability 0.5) read as DULL. We stay on eleven-v3 (it's the ONLY expressive
+fal TTS that returns timestamps — Maya1 is more emotive but outputs no alignment → would break captions,
+same reason MiniMax was dropped), and instead pick the VOICE + stability per business. Precedence:
+**gender > region > vertical** (operator-confirmed). Matched against business NAME + operator BRIEF
+(vertical/gender) and LOCATION (region) — never the generated script.
+1. **Male-target (gender, top):** casual/young (fitness, gym, barber, food truck, tattoo, brewery) →
+   **Will**; premium/older (dealership, auto, fine dining, steakhouse, whiskey, cigar, golf) → **Charlie**.
+2. **Southern state (region):** TX FL GA NC SC TN AL MS LA AR KY VA WV OK → **Aria** (beats vertical).
+3. **Vertical:** massage/therapy → **Jessica**; spa/wellness/skincare/yoga → **Sarah**;
+   bakery/daycare/florist/family → **Matilda**; tech/SaaS/gender-neutral → **River**.
+4. **Default → Laura.**
+Stability per voice (expressiveness lever; lower = more expressive): Will/Charlie/Aria 0.3, Laura 0.35,
+Matilda/River 0.4, Jessica/Sarah 0.5 (calming = smoother/steadier). eleven-v3 also supports inline audio
+tags (`[excited]`, `[warmly]`, `[laughs]`) — available if we later want the script to carry emotion cues.
+All 8 routed voices verified to return timestamps (sample set in `runs/0025/voice_ab/`).
+
 ### ElevenLabs eleven-v3 — VERIFIED LIVE
 - Endpoint `fal-ai/elevenlabs/tts/eleven-v3`. Params: `text`, `voice` (default "Rachel"),
   `stability` (0–1), `similarity_boost`, `style`, **`speed` (0.7–1.2 ONLY — narrow, so size the

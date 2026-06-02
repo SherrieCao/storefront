@@ -20,11 +20,55 @@ from .tracing import Run
 
 VOICE_DIR = "06_voice"
 RESULT_FILE = "06_voice/voice.json"
-_VOICE_ID = "Rachel"
+_DEFAULT_VOICE = "Laura"      # general fallback (see _select_voice)
+
+# --- Voice routing (operator policy): gender > region > vertical --------------------------------
+# All voices are eleven-v3 named presets (each verified to return timestamps). stability per voice
+# tunes delivery: lower = more expressive (energetic), higher = smoother/steadier (calming). The old
+# flat "Rachel" @0.5 read as DULL — this picks a voice + expressiveness that fits the business.
+_SOUTHERN_STATES = {  # 2-letter codes + full names, lowercased; matched against the location string
+    "tx", "fl", "ga", "nc", "sc", "tn", "al", "ms", "la", "ar", "ky", "va", "wv", "ok",
+    "texas", "florida", "georgia", "north carolina", "south carolina", "tennessee", "alabama",
+    "mississippi", "louisiana", "arkansas", "kentucky", "virginia", "west virginia", "oklahoma"}
+# vertical/audience keyword groups (matched against business NAME + operator BRIEF, lowercased)
+_MALE_CASUAL  = ("fitness", "gym", "crossfit", "barber", "barbershop", "food truck", "skate",
+                 "tattoo", "brewery", "sports bar", "smoke shop")
+_MALE_PREMIUM = ("dealership", "car dealer", "auto ", "automotive", "motors", "steakhouse",
+                 "fine dining", "whiskey", "cigar", "golf", "watch ", "menswear")
+_MASSAGE      = ("massage", "therapy", "therapist", "chiropract", "physio", "acupunctur")
+_SPA          = ("spa", "wellness", "skincare", "facial", "yoga", "pilates", "sauna", "medspa", "med spa")
+_FAMILY       = ("bakery", "daycare", "day care", "florist", "flower", "preschool", "children", "family")
+_TECH         = ("tech", "software", "saas", " app", "startup", "cybersecurity", "it services")
+# voice -> stability (expressiveness). Energetic 0.3 · calming 0.5 · warm/neutral 0.4.
+_STABILITY = {"Will": 0.3, "Charlie": 0.3, "Aria": 0.3, "Laura": 0.35,
+              "Jessica": 0.5, "Sarah": 0.5, "Matilda": 0.4, "River": 0.4}
+
+
+def _select_voice(inventory: dict[str, Any]) -> tuple[str, float]:
+    """Pick the TTS voice from the business, by operator policy: GENDER > REGION > VERTICAL.
+    Reads the business NAME + operator BRIEF (the source of truth for what the business is) and the
+    LOCATION; never the generated script (which could spuriously match). Returns (voice, stability)."""
+    text = " ".join([str(inventory.get("business") or ""), str(inventory.get("brief") or "")]).lower()
+    loc = str(inventory.get("location") or "").lower()
+    state = loc.split(",")[-1].strip()
+    in_south = state in _SOUTHERN_STATES or any(s in loc for s in _SOUTHERN_STATES if len(s) > 3)
+
+    def has(words: tuple[str, ...]) -> bool:
+        return any(w in text for w in words)
+
+    if has(_MALE_CASUAL):       voice = "Will"        # 1. gender (male-target) — top priority
+    elif has(_MALE_PREMIUM):    voice = "Charlie"
+    elif in_south:              voice = "Aria"        # 2. region
+    elif has(_MASSAGE):         voice = "Jessica"     # 3. vertical
+    elif has(_SPA):             voice = "Sarah"
+    elif has(_FAMILY):          voice = "Matilda"
+    elif has(_TECH):            voice = "River"
+    else:                       voice = _DEFAULT_VOICE  # 4. default
+    return voice, _STABILITY.get(voice, 0.35)
 
 
 def run_voice(run: Run, brief: dict[str, Any], timeline: dict[str, Any],
-              *, use_cache: bool = False) -> dict[str, Any]:
+              inventory: dict[str, Any] | None = None, *, use_cache: bool = False) -> dict[str, Any]:
     out_dir = run.dir / VOICE_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
     cache = run.dir / RESULT_FILE
@@ -34,6 +78,7 @@ def run_voice(run: Run, brief: dict[str, Any], timeline: dict[str, Any],
     text = (brief.get("speech") or brief.get("script") or "").strip()
     target_s = float(timeline.get("total_s") or brief.get("total_duration_s") or config.MIN_DURATION_S)
     mp3 = out_dir / "voiceover.mp3"
+    voice_id, stability = _select_voice(inventory or {})   # gender > region > vertical (operator policy)
 
     if not text:
         run.log("Voice: no speech in brief — empty track")
@@ -51,27 +96,30 @@ def run_voice(run: Run, brief: dict[str, Any], timeline: dict[str, Any],
 
     # Generate ONE natural take. The editor time-stretches it (ffmpeg atempo, pitch-preserving) to fit
     # the fixed video length, so we don't fight ElevenLabs' 1.2 speed cap here.
-    lines, words, dur_s = _eleven_render(run, text, str(mp3), 1.0)
+    run.log(f"Voice: '{voice_id}' (stability {stability}) — by policy gender>region>vertical")
+    lines, words, dur_s = _eleven_render(run, text, str(mp3), 1.0, voice_id, stability)
     if dur_s > target_s * 1.6:
         run.log(f"Voice: {dur_s:.1f}s for a {target_s:.0f}s ad — editor atempo caps at "
                 f"{config.VOICE_MAX_ATEMPO}× (Director should shorten the script).")
 
     result = {"audio_path": str(mp3), "duration_ms": int(dur_s * 1000), "lines": lines,
-              "words": words, "voice": _VOICE_ID, "timeline_total_s": target_s}
+              "words": words, "voice": voice_id, "stability": stability, "timeline_total_s": target_s}
     cache.write_text(json.dumps(result, indent=2))
     run.reason("Voice", None,
-               f"ElevenLabs natural take ({dur_s:.1f}s); the editor will atempo-fit it to the "
-               f"{target_s:.1f}s timeline. {len(lines)} caption lines from real word timestamps.")
+               f"ElevenLabs '{voice_id}' take ({dur_s:.1f}s, stability {stability}); the editor will "
+               f"atempo-fit it to the {target_s:.1f}s timeline. {len(lines)} caption lines from real "
+               f"word timestamps.")
     run.log(f"Voice: {dur_s:.1f}s natural, {len(lines)} lines (editor will fit to {target_s:.1f}s)")
     return result
 
 
-def _eleven_render(run: Run, text: str, dst: str, speed: float) -> tuple[list[dict], list[dict], float]:
+def _eleven_render(run: Run, text: str, dst: str, speed: float, voice: str = _DEFAULT_VOICE,
+                   stability: float = 0.35) -> tuple[list[dict], list[dict], float]:
     """One ElevenLabs call (timestamps on). Saves the mp3, returns (caption lines, words, duration_s)."""
     budget.check_ceiling(run, budget.tts_call(len(text)), "voice")
     import fal_client
     res = fal_client.subscribe(config.MODEL_ROUTER["tts"], arguments={
-        "text": text, "voice": _VOICE_ID, "stability": 0.5, "speed": speed,
+        "text": text, "voice": voice, "stability": stability, "speed": speed,
         "timestamps": True}, with_logs=False)
     run.add_cost("voice", budget.tts_call(len(text)))
     audio = res.get("audio")

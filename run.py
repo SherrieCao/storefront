@@ -80,7 +80,7 @@ def main() -> int:
         need_timeline = (not cached("voice")) or (not cached("editor"))
         timeline = (ed_.plan_timeline(run, brief, shots, keyframes, inventory, beats=music.get("beats"))
                     if need_timeline else {})
-        step = "voice";     voice = voice_.run_voice(run, brief, timeline, use_cache=cached("voice"))
+        step = "voice";     voice = voice_.run_voice(run, brief, timeline, inventory, use_cache=cached("voice"))
         step = "editor";    final = ed_.render(run, timeline, voice, music=music, use_cache=cached("editor"))
         _flag_editor(run, timeline)            # surface an unresolved editor review (like creative flags)
         step = "review"
