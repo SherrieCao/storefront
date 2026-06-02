@@ -86,8 +86,10 @@ tutorial, unboxing) are TREATMENTS you draw on per segment or across the ad — 
 choice. Apply their craft (when each works, the messaging rule, the trade-off). Gates still hold:
 - **before/after framing** (a before→after transformation reveal): ONLY if {{has_before_after}} is True —
   otherwise off the table; never build it from generated footage. When it IS available, the before→after
-  transformation is one of the STRONGEST formats (especially salon / nail / cleaning / detailing) —
-  strongly consider it.
+  transformation is the STRONGEST format (especially salon / nail / cleaning / detailing) — make it your
+  **default SPINE**: build the ad around the reveal unless you have a clearly stronger angle. And once you
+  commit to it, **KEEP it across revisions** — if a later critique flags pacing or variety, fix that with
+  the OTHER beats (add/trim clips, vary sources); do NOT abandon the reveal to chase an unrelated note.
 - **`role` on assets (before/after) — build a DELIBERATE SEQUENTIAL REVEAL:** some photos in
   `asset_summary` carry `"role": "before"` or `"after"` (the operator labeled the file). A `before` photo
   is a PROBLEM-STATE image — NEVER the hero, the closing-card background, or a standalone showcase. It is
