@@ -59,25 +59,34 @@ def plan_timeline(run: Run, brief: dict[str, Any], shots_result: dict[str, Any],
     # editor builds (D38/D39) — judge that the close LANDS (lead-in doesn't deflate it), not its form.
     ending_context = {"voice_style": brief.get("voice_style", "")}
 
-    # self-correcting editor critic loop: plan -> review -> regenerate. Keep the BEST attempt — a parse
-    # failure can drop _editor_agent to a weak fallback, so the LAST attempt isn't necessarily the best.
-    fb, attempts, cands, last_valid = None, [], [], None
-    for attempt in range(1, config.MAX_CREATIVE_RETRIES + 1):
-        agent = _editor_agent(run, usable, brief, limits, feedback=fb, prev_valid=last_valid)
-        if agent.get("segments") and not agent.get("_fallback"):
-            last_valid = agent                       # remember the last good LLM plan to reuse on a parse-fail
-        verdict = reviewers.review(run, "edit", {**agent, "ending_context": ending_context}, ctx)
-        attempts.append({"attempt": attempt, "passed": verdict["pass"], "scores": verdict["scores"],
-                         "failed_lenses": verdict["failed_lenses"], "improvement": verdict["improvement"]})
-        cands.append((bool(verdict["pass"]), _mean_score(verdict.get("scores", {})), agent, verdict))
-        if verdict["pass"]:
-            break
-        fb = verdict["improvement"]
-        run.log(f"Editor: edit-review attempt {attempt} FAIL ({verdict['failed_lenses']}) — replanning")
-    agent, verdict = _pick_best(cands)               # accept-BEST (not accept-last) + flag
-    if not verdict.get("pass"):
-        run.log(f"Editor: no attempt passed in {len(cands)} — shipping best "
-                f"(score {_mean_score(verdict.get('scores', {})):.2f})")
+    attempts = []
+    if not config.EDITOR_CRITIC_LOOP:
+        # Editor critic loop DISABLED (D42) — it was the dominant latency (~12 min / 3 retries) and the
+        # agent's single pass is already good enough. One plan, no reviewer, no retries.
+        agent = _editor_agent(run, usable, brief, limits)
+        verdict = {"pass": True, "scores": {}, "failed_lenses": [], "improvement": ""}
+        attempts.append({"attempt": 1, "passed": True, "scores": {}, "failed_lenses": [], "improvement": ""})
+        run.log("Editor: critic loop disabled (single-pass plan; set config.EDITOR_CRITIC_LOOP=True to re-enable)")
+    else:
+        # self-correcting editor critic loop: plan -> review -> regenerate. Keep the BEST attempt — a parse
+        # failure can drop _editor_agent to a weak fallback, so the LAST attempt isn't necessarily the best.
+        fb, cands, last_valid = None, [], None
+        for attempt in range(1, config.MAX_CREATIVE_RETRIES + 1):
+            agent = _editor_agent(run, usable, brief, limits, feedback=fb, prev_valid=last_valid)
+            if agent.get("segments") and not agent.get("_fallback"):
+                last_valid = agent                   # remember the last good LLM plan to reuse on a parse-fail
+            verdict = reviewers.review(run, "edit", {**agent, "ending_context": ending_context}, ctx)
+            attempts.append({"attempt": attempt, "passed": verdict["pass"], "scores": verdict["scores"],
+                             "failed_lenses": verdict["failed_lenses"], "improvement": verdict["improvement"]})
+            cands.append((bool(verdict["pass"]), _mean_score(verdict.get("scores", {})), agent, verdict))
+            if verdict["pass"]:
+                break
+            fb = verdict["improvement"]
+            run.log(f"Editor: edit-review attempt {attempt} FAIL ({verdict['failed_lenses']}) — replanning")
+        agent, verdict = _pick_best(cands)           # accept-BEST (not accept-last) + flag
+        if not verdict.get("pass"):
+            run.log(f"Editor: no attempt passed in {len(cands)} — shipping best "
+                    f"(score {_mean_score(verdict.get('scores', {})):.2f})")
 
     segs, sources = _build_segments(agent, by_n, clips, keyframes_map, inventory, limits)
     _realize_ending(run, segs, sources, inventory)          # closing beat = a designed branded info card (D38)

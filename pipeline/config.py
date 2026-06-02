@@ -107,6 +107,8 @@ MAX_VIDEO_CLIP_S  = 5.0              # max real_clip trim length (Remotion trims
 MAX_SHOT_RETRIES  = 3                # per seedance_shot: generate + judge, retry up to 3, then flag
 MAX_CREATIVE_RETRIES   = 3           # per creative stage: produce + review, self-correct up to N
                                      # (3 since the director now stacks reviewer + pacing + moodboard guards)
+EDITOR_CRITIC_LOOP = False           # D42: editor reviewer was the dominant latency (~12min/3 retries) for
+                                     # little gain — disabled (single-pass editor). Flip True to re-enable.
 CREATIVE_MAX_ESCALATIONS = 1         # director-review fail -> re-roll the upstream concept this many times
 COST_CEILING_USD  = 5.00             # SILENT safety net (D6/D19): Director never sees cost
 COST_WARN_FRACTION = 0.8             # log a warning once cost crosses this fraction of the ceiling

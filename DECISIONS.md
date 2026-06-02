@@ -519,3 +519,12 @@ polish / lo-fi wins" language was absolute (so "authentic" licensed an unappeali
   card's start) threaded editor.py → render plan → AdComposition → KineticCaption + CaptionTrack: render
   nothing at/after the card. No VO-coverage loss.
 Versions: concept-v0.5, director-v1.14, reviewer-v0.9, shot-prompt-v1.2, shot-agent-v0.4.
+
+## D42 (SHIPPED — editor critic loop disabled for latency)
+The editor critic loop was the dominant latency (run 0022: 742s / 12 min on 3 failed attempts) and
+unreliable (failed all 3 → accept-best shipped ~0.56), while the editor agent's single pass was already
+good enough. Gated it off behind `config.EDITOR_CRITIC_LOOP = False`: the editor now runs ONE pass (no
+reviewer, no retries). The accept-best loop + `editing_reviewer.md` are kept intact in the `else` branch —
+flip the flag to re-enable. Everything downstream (the branded ending card via `_realize_ending`,
+`_fit_to_total`, beat-snap, voice-fit + caption cutoff, render) is unchanged. Concept + Director critic
+loops untouched. Revisit if single-pass editing quality proves insufficient.
