@@ -6,10 +6,11 @@ import {AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig} from
 const FONT = 'Helvetica, Arial, sans-serif';
 
 export type OverlaySpec = {
-  kind: 'lower_third' | 'badge';
+  kind: 'lower_third' | 'badge' | 'stamp';
   text: string;
   position?: 'tl' | 'tr' | 'bl' | 'br'; // badge corner (default tr)
   accent?: string;
+  variant?: 'before' | 'after';         // stamp: 'before' = muted, 'after' = brand accent + harder hit
 };
 
 const corner = (p?: string): React.CSSProperties => ({
@@ -35,6 +36,27 @@ export const OverlayLayer: React.FC<{overlay: OverlaySpec; palette?: string[]}> 
           <div style={{width: 9, height: 46, backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 3}} />
           <span style={{color: '#fff', fontSize: 50, fontWeight: 800, fontFamily: FONT,
             letterSpacing: 0.5}}>{overlay.text}</span>
+        </div>
+      </AbsoluteFill>
+    );
+  }
+
+  if (overlay.kind === 'stamp') {
+    // Bold kinetic stamp: big caps SLAM onto the frame (scale 1.35 -> 1.0). BEFORE is muted; AFTER hits
+    // harder and in the brand accent — the transformation's punctuation, not a sticker.
+    const isAfter = overlay.variant === 'after';
+    const hit = spring({frame, fps, config: {damping: isAfter ? 9 : 13, stiffness: 210, mass: 0.7}});
+    const scale = interpolate(hit, [0, 1], [1.35, 1.0]);
+    const fade = interpolate(frame, [0, 4], [0, 1], {extrapolateRight: 'clamp'});
+    return (
+      <AbsoluteFill style={{justifyContent: 'flex-start', alignItems: 'center', paddingTop: 230}}>
+        <div style={{transform: `scale(${scale})`, opacity: fade,
+          color: isAfter ? accent : 'rgba(255,255,255,0.94)',
+          fontFamily: FONT, fontWeight: 900, fontSize: isAfter ? 134 : 116,
+          letterSpacing: isAfter ? 14 : 10, textTransform: 'uppercase', whiteSpace: 'nowrap',
+          WebkitTextStroke: isAfter ? '2px rgba(255,255,255,0.30)' : '1px rgba(255,255,255,0.18)',
+          textShadow: '0 5px 22px rgba(0,0,0,0.6)'}}>
+          {overlay.text}
         </div>
       </AbsoluteFill>
     );

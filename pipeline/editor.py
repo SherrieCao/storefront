@@ -510,13 +510,14 @@ def _realize_before_after(run: Run, segs: list[dict], by_n: dict, inventory: dic
     for i in range(len(segs) - 1):
         if roles[i] == "before" and roles[i + 1] == "after":
             before_seg, after_seg = segs[i], segs[i + 1]
-            before_seg.setdefault("overlay", {"kind": "badge", "text": "BEFORE", "position": "tl"})
-            after_seg.setdefault("overlay", {"kind": "badge", "text": "AFTER", "position": "tr"})
+            # bold kinetic stamp (not a corner sticker): BEFORE muted, AFTER in brand accent + harder hit
+            before_seg.setdefault("overlay", {"kind": "stamp", "text": "BEFORE", "variant": "before"})
+            after_seg.setdefault("overlay", {"kind": "stamp", "text": "AFTER", "variant": "after"})
             if after_seg.get("transition_in") not in _OVERLAP_TRANSITIONS:
                 after_seg["transition_in"] = "whip"   # the reveal cut into the after
             done += 1
     if done:
-        run.log(f"Editor: before/after reveal — {done} BEFORE→AFTER pair(s) labeled + whip reveal")
+        run.log(f"Editor: before/after reveal — {done} BEFORE→AFTER pair(s) stamped + whip reveal")
 
 
 def _card_bg(inventory: dict, used_refs: set[str]) -> str | None:
