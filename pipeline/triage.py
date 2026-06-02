@@ -152,8 +152,13 @@ def _load_brief(snap, fallback_business: str) -> tuple[str, str, str, dict[str, 
 
 def role_from_name(name: str) -> str | None:
     """An EXPLICIT before/after label the operator put in the filename (e.g. before_1.jpg / after-2.png).
-    Returns "before" | "after" | None. This is an operator statement, not inference about pixels."""
+    Returns "before" | "after" | None. This is an operator statement, not inference about pixels.
+    Robust to pipeline staging prefixes: the enhance stage copies to `enh_<original>`, so strip a leading
+    `enh_` before matching (otherwise an enhanced before-photo reads as role=None — which silently broke
+    the keyframe `preserve_before` path and the card-bg before-exclusion)."""
     stem = Path(name).stem.lower()
+    if stem.startswith("enh_"):
+        stem = stem[4:]
     if stem.startswith("before") and (len(stem) == 6 or stem[6] in "_- 0123456789"):
         return "before"
     if stem.startswith("after") and (len(stem) == 5 or stem[5] in "_- 0123456789"):
