@@ -88,7 +88,7 @@ def plan_timeline(run: Run, brief: dict[str, Any], shots_result: dict[str, Any],
             run.log(f"Editor: no attempt passed in {len(cands)} — shipping best "
                     f"(score {_mean_score(verdict.get('scores', {})):.2f})")
 
-    segs, sources = _build_segments(agent, by_n, clips, keyframes_map, inventory, limits)
+    segs, sources = _build_segments(run, agent, by_n, clips, keyframes_map, inventory, limits)
     _realize_before_after(run, segs, by_n, inventory)       # D43: obvious before->after sequential reveal
     _realize_ending(run, segs, sources, inventory)          # closing beat = a designed branded info card (D38)
     _fit_to_total(run, segs, target)                        # clamp + reconcile durations to target
@@ -325,7 +325,7 @@ def _fallback_plan(usable: list[dict]) -> dict[str, Any]:
             "_fallback": True}
 
 
-def _build_segments(agent: dict, by_n: dict, clips: dict, keyframes_map: dict,
+def _build_segments(run: Run, agent: dict, by_n: dict, clips: dict, keyframes_map: dict,
                     inventory: dict, limits: dict[str, float]) -> tuple[list[dict], dict[str, str]]:
     """Resolve each agent segment to a render segment (bright line: clips from Shot Agent; real_clip
     trimmed here; moodboard keyframe; card template). Carries `_max_s` (None = extensible)."""
@@ -352,7 +352,7 @@ def _build_segments(agent: dict, by_n: dict, clips: dict, keyframes_map: dict,
                 light_leak_used = True
         seg: dict[str, Any] = {"type": t, "duration_s": max(0.5, float(ps.get("duration_s") or 3)),
                                "transition_in": trans, "_max_s": limits.get(n), "_n": n}
-        ov = _overlay(ps.get("overlay"))                  # lower-third / badge motion graphic (D4)
+        ov = _overlay(ps.get("overlay"), inventory.get("contact") or {}, run)   # lower-third / badge (D4); drops fabricated contact
         if ov:
             seg["overlay"] = ov
         if t in ("seedance_shot", "real_clip") and ps.get("motion") in _MOTIONS:
@@ -381,13 +381,42 @@ def _build_segments(agent: dict, by_n: dict, clips: dict, keyframes_map: dict,
     return out, sources
 
 
-def _overlay(o: Any) -> dict[str, Any] | None:
+_HANDLE_RE = re.compile(r"@\w[\w.]*")
+_URL_RE    = re.compile(r"\b(?:https?://|www\.)\S+|\b[\w-]+\.(?:com|co|io|net|org|shop|salon|beauty|app)\b", re.I)
+_EMAIL_RE  = re.compile(r"\b[\w.+-]+@[\w-]+\.\w+\b")
+_PHONE_RE  = re.compile(r"\+?\d[\d\-().\s]{6,}\d")
+
+
+def _fabricated_contact(text: str, contact: dict) -> str | None:
+    """Return the first contact-like token (handle / URL / email / phone) in `text` that is NOT in the
+    operator-provided `contact` — i.e. an INVENTED one — else None. Hard rule: never fabricate a
+    handle/URL/phone. The editor agent sometimes invents an @handle for a lower_third (e.g. '@colorstudio'
+    for Hue); the ending card already carries the REAL contact, so a fabricated overlay just gets dropped."""
+    allowed = " ".join(str(contact.get(k) or "") for k in ("social", "booking_url", "phone", "address")).lower()
+    allowed_digits = re.sub(r"\D", "", allowed)
+    for m in _EMAIL_RE.findall(text) + _HANDLE_RE.findall(text) + _URL_RE.findall(text):
+        if m.lower() not in allowed:
+            return m
+    for m in _PHONE_RE.findall(text):
+        d = re.sub(r"\D", "", m)
+        if len(d) >= 7 and d not in allowed_digits:
+            return m
+    return None
+
+
+def _overlay(o: Any, contact: dict, run: Run | None = None) -> dict[str, Any] | None:
     """Validate an Editor-Agent overlay spec (D4). Drops malformed/empty ones (fail-safe: no overlay
-    rather than a broken render). Shape mirrors editor_render/src/Overlay.tsx OverlaySpec."""
+    rather than a broken render), AND drops any overlay whose text invents contact (a handle/URL/phone
+    not in brief.json — a hallucination). Shape mirrors editor_render/src/Overlay.tsx OverlaySpec."""
     if not isinstance(o, dict) or o.get("kind") not in _OVERLAY_KINDS:
         return None
     text = str(o.get("text", "")).strip()
     if not text:
+        return None
+    fab = _fabricated_contact(text, contact or {})
+    if fab:
+        if run:
+            run.log(f"Editor: dropped overlay — fabricated contact '{fab}' not in brief.json (text: '{text}')")
         return None
     out: dict[str, Any] = {"kind": o["kind"], "text": text[:60]}
     if o.get("position") in _BADGE_POS:

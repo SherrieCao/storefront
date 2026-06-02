@@ -16,12 +16,13 @@ Stubs offline (no FAL_KEY): writes placeholder frames so downstream stages still
 NOT for: video generation (Shot Agent) or creative decisions (the Director).
 """
 from __future__ import annotations
-import json, urllib.request
+import json, shutil, urllib.request
 from pathlib import Path
 from typing import Any
 from . import config, budget
 from .tracing import Run
 from .translator import resolve_ref
+from .triage import role_from_name
 
 KEYFRAMES_DIR = "04_keyframes"
 # Held constant across the set so the frames share a look (+ Nano Banana's built-in consistency).
@@ -59,10 +60,17 @@ def run_keyframes(run: Run, brief: dict[str, Any], inventory: dict[str, Any],
             else:
                 mode, prompt, image_urls = "generate", _shot_prompt(seg, mood), []
         else:  # moodboard
-            mode = "moodboard"
             assets = [resolve_ref(inventory, t) for t in seg.get("moodboard_assets", [])]
             image_urls = [p for p in assets if p]
-            prompt = _moodboard_prompt(seg, mood)
+            # before/after (D43): a `before` photo is the raw PROBLEM-STATE image — show it PLAIN, not a
+            # beautified Nano Banana composition (it should read as the unglamorous starting point). If
+            # every photo in this beat is before-role, use the raw photo directly (also skips a fal call).
+            if image_urls and all(role_from_name(Path(p).name) == "before" for p in image_urls):
+                shutil.copyfile(image_urls[0], dst)
+                kf_map[str(n)] = {"path": str(dst), "mode": "preserve_before", "segment_type": seg["type"]}
+                run.log(f"Keyframes: segment {n} [preserve_before] -> {dst.name} (plain before photo, no composition)")
+                continue
+            mode, prompt = "moodboard", _moodboard_prompt(seg, mood)
 
         _make_keyframe(run, mode, prompt, image_urls, str(dst), seed)
         kf_map[str(n)] = {"path": str(dst), "mode": mode, "segment_type": seg["type"]}

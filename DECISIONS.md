@@ -546,3 +546,18 @@ comparison obvious on screen (no labels, no reveal cut). Fix = a deliberate **SE
   into the after beat. Built entirely from existing primitives (whip transition + badge overlays +
   `role_from_name`); NO new Remotion component. Independent of the (disabled, D42) editor critic loop.
 The reveal uses the operator's REAL before/after photos — generated footage still never fakes one.
+
+## D44 (SHIPPED — kill fabricated contact in overlays; before photo shown PLAIN)
+Operator review of run 0026 caught two editor issues:
+1. **Fabricated contact (hallucination).** The editor agent invented an `@colorstudio` handle in a
+   lower_third overlay (Hue's REAL handle is `@huehairsf`). Rather than re-enable the slow editor critic
+   loop (D42 latency), added a DETERMINISTIC guard: `_fabricated_contact` + `_overlay` now DROP any
+   overlay whose text contains a handle / URL / email / phone NOT present in `inventory.contact`
+   (allow-list against brief.json — real handle stays, invented one is dropped + logged). Fixed the
+   scaffold example (`editor.md` lower_third no longer shows an invented `@handle`/fake hours) +
+   added a no-fabrication rule. The reviewer remains the tool for BROADER hallucination (fake claims);
+   this kills the contact-fabrication class for free.
+2. **Before photo was beautified.** A `before`-role beat was rendered as a Nano Banana moodboard
+   COMPOSITION (polished) — the opposite of a raw problem-state image. Keyframes now shows a before-only
+   beat as the PLAIN raw photo (copyfile, no composition) — also skips a fal call. (Refines D43.)
+editor-v0.10.

@@ -146,7 +146,7 @@ SCAFFOLD_VERSIONS = {
     "creative_director": "director-v1.17",   # 25–30s duration + pacing/script sizing retuned (was ~15–20s)
     "prompt_translator": "shot-prompt-v1.2", # real texture but FLATTERING; true color (don't dull the hero result)
     "shot_agent":        "shot-agent-v0.4",  # synthetic-only soft signal; never flag a clean/flattering/vivid result
-    "editor":            "editor-v0.9",      # before/after reveal realized deterministically (labels + whip, D43)
+    "editor":            "editor-v0.10",     # no fabricated contact in overlays (D44); before/after reveal (D43)
 }
 
 # ---------------------------------------------------------------------------
