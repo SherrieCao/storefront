@@ -118,6 +118,11 @@ COST_CEILING_USD  = 5.00             # SILENT safety net (D6/D19): Director neve
 COST_WARN_FRACTION = 0.8             # log a warning once cost crosses this fraction of the ceiling
 MAX_SHOT_CONCURRENCY = 4             # Seedance is ~2min/gen — fan shots out concurrently
 MAX_KEYFRAME_CONCURRENCY = 4         # Nano Banana frames are independent — generate concurrently (D45)
+# De-AI temporal post-processing on seedance_shot clips (D47): grain + vignette + softness + jitter via
+# ffmpeg so generated footage reads phone-captured. Color is NOT touched (hero stays vivid, D41).
+DEAI_ENABLED = True
+DEAI_DEFAULT_INTENSITY = "moderate"  # light | moderate | heavy
+DEAI_CRF = 20                        # grain needs bitrate — keep ≤ 23
 
 # Editor pacing + voice-fit (social-native fast cutting)
 EDITOR_MAX_EXTENSIBLE_S = 3.0        # max hold for a single card/moodboard beat (4.0->3.0, E2 faster cuts)

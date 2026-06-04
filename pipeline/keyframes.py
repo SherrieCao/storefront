@@ -27,9 +27,16 @@ from .triage import role_from_name
 
 KEYFRAMES_DIR = "04_keyframes"
 # Held constant across the set so the frames share a look (+ Nano Banana's built-in consistency).
-_STYLE_SUFFIX = ("Consistent warm documentary style, soft natural light, authentic and lo-fi, "
-                 "vertical 9:16 composition. Absolutely NO on-screen text, words, captions, logos, "
-                 "watermarks, or signage.")
+# De-AI (D47): describe the PHYSICS of a phone camera, not "lo-fi" (which Nano Banana renders as a pretty
+# version of lo-fi). Negatives folded into the prompt (nano-banana-2 has no negative_prompt). COLOR is
+# deliberately NOT muted — "natural, not over-graded" keeps a genuinely vivid result vivid (D41).
+_STYLE_SUFFIX = ("Phone-camera realism: mixed color-temperature indoor light (warm lamp + cool daylight), "
+                 "deep depth of field (everything roughly in focus, no bokeh), slightly overexposed "
+                 "highlights, natural color that is true to life and NOT over-graded (a genuinely vivid "
+                 "subject stays vivid), slightly off-center casual composition, authentic and NOT polished. "
+                 "Vertical 9:16. Absolutely NOT studio-lit, NOT shallow depth of field or bokeh, NOT "
+                 "golden-hour, NOT a glossy 3D render. Absolutely NO on-screen text, words, captions, "
+                 "logos, watermarks, or signage.")
 
 
 def run_keyframes(run: Run, brief: dict[str, Any], inventory: dict[str, Any],
@@ -103,8 +110,13 @@ def _shot_prompt(seg: dict[str, Any], mood: str) -> str:
     intent = seg.get("intent", "")
     base = f"A clean, still start frame for a short ad shot: {intent}. {('Mood: ' + mood + '. ') if mood else ''}"
     if seg.get("asset_ref", "").startswith("@Image"):
-        base = ("Reframe and clean up the attached real photo into a polished 9:16 still frame, "
-                "keeping the EXACT same subject(s) and setting (preserve identity). " + base)
+        # De-AI (D47): "polished" told Nano Banana to "improve" the phone photo into a pro-looking image —
+        # undoing the authentic look Seedance should inherit. PRESERVE, don't polish.
+        base = ("Reframe the attached real photo into a 9:16 still frame. PRESERVE the photo's natural "
+                "lighting, color temperature, and exposure character — do NOT brighten, saturate, smooth, "
+                "or stylize it. The photo's imperfections (mixed light, slight noise, casual framing) are "
+                "FEATURES, not defects; match the reframed output to the original photo's look. Keep the "
+                "EXACT same subject(s) and setting (preserve identity). " + base)
     return base + _STYLE_SUFFIX
 
 

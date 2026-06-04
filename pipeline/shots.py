@@ -18,7 +18,7 @@ import json, subprocess, threading, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
-from . import config, budget
+from . import config, budget, deai
 from .tracing import Run, log_llm_call
 from .llm import call_gemini_video_judge, parse_json
 from .translator import compose_shot_prompt
@@ -71,8 +71,14 @@ def run_shots(run: Run, brief: dict[str, Any], inventory: dict[str, Any],
             if verdict.get("pass"):
                 approved = out_dir / f"shot_{n}.mp4"
                 _copy(clip, approved)
+                # De-AI texture pass (D47) so the generated shot reads phone-captured. The RAW approved
+                # clip is kept for A/B; the editor consumes the _deai version. Runs in this worker thread
+                # (free concurrency); ffmpeg-only so it works offline; falls back to raw on any failure.
+                final_clip = str(approved)
+                if config.DEAI_ENABLED:
+                    final_clip = deai.deai_clip(run, str(approved), str(out_dir / f"shot_{n}_deai.mp4"))
                 with lock:
-                    clips[str(n)] = str(approved)
+                    clips[str(n)] = final_clip
                     narrative.append(f"- Shot {n}: passed on attempt {attempt} "
                                      f"(score {verdict.get('score')}).")
                 run.log(f"Shots: shot {n} APPROVED on attempt {attempt}")

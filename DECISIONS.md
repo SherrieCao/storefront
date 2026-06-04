@@ -581,3 +581,23 @@ thinking per-stage: `_thinking_config(types, model, level)` + a `thinking_level`
 already-vetted concept); **Concept stays "high"** (protect ideation). Director agent loop capped 6→4.
 Reversible (one config line). Quality to be sanity-checked on the next real run; revert to "high" if the
 brief degrades. (Verify valid gemini-3 thinking_level values against live docs.)
+
+## D47 (SHIPPED — de-AI pass: phone-camera keyframes + temporal post-processing)
+Per SPEC_deai_postprocess: seedance_shot clips read as "AI" next to the real footage. Two layers, applied
+ONLY to seedance_shot:
+- **Layer 1 (keyframes.py, prompt strings, zero cost):** `generate_from_real` no longer says "polished"
+  (it told Nano Banana to "improve" the phone photo) → now "PRESERVE the photo's natural lighting/color/
+  exposure; imperfections are FEATURES." `_STYLE_SUFFIX` rewritten to phone-camera physics (mixed
+  color-temp light, deep DoF/no bokeh, blown highlights, casual composition, NOT polished) with the
+  anti-AI negatives folded into the positive prompt (nano-banana-2 has no negative_prompt).
+- **Layer 2 (new pipeline/deai.py + shots.py):** `deai_clip()` runs one ffmpeg pass on each APPROVED clip
+  in the shot worker — temporal grain + vignette + slight softness + handheld micro-jitter. Raw
+  `shot_N.mp4` preserved; the editor consumes `shot_N_deai.mp4` (clips map repointed). `DEAI_ENABLED`
+  toggle; graceful fallback to raw on ffmpeg failure; ffmpeg-only (works offline; parallelized free in the
+  worker). Presets light/moderate/heavy (default moderate).
+- **COLOR DELIBERATELY PROTECTED (overrides the spec):** Layer 1 says "natural, not over-graded" (NOT
+  "muted") and Layer 2 applies NO desaturation — de-AI is texture-only — so a genuinely vivid result
+  (the salon's hair) stays vivid. This honors D41 (muting killed the money shot).
+Validated: deai_clip → valid 1080x1920 mp4 for all presets; offline E2E (run 0028) fires de-AI, preserves
+raw, editor uses _deai. PENDING real-run/operator: keyframe visual quality + seedance-vs-real_clip blend +
+intensity tuning.
