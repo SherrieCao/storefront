@@ -11,6 +11,7 @@ The cost ceiling ($5) is a silent safety net; the Director never sees cost.
 """
 from __future__ import annotations
 import argparse, json, sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
@@ -56,24 +57,32 @@ def main() -> int:
         inventory = tri.run_triage(run, input_dir, use_cache=cached("triage"))
         if inventory.get("gap_ask"):
             run.log(f"[OPERATOR ACTION] {inventory['gap_ask']}")
-        step = "concept";  concept = concept_.run_concept(run, inventory, use_cache=cached("concept"))
-        step = "director"; brief = dir_.run_director(run, inventory, concept, use_cache=cached("director"))
-        # creative-reviewer escalation: a brief that fails its reviewer after self-retries re-rolls the
-        # upstream concept (with the director's feedback), then re-plans. Bounded; fresh runs only.
-        esc = 0
-        while (not brief.get("_review", {}).get("passed", True) and esc < config.CREATIVE_MAX_ESCALATIONS
-               and not cached("concept") and not cached("director")):
-            esc += 1
-            run.log(f"[ESCALATION {esc}] director review unresolved — re-rolling concept with feedback")
-            concept = concept_.run_concept(run, inventory, feedback=brief["_review"].get("improvement"))
-            brief = dir_.run_director(run, inventory, concept)
-        _collect_creative_flags(run, concept, brief)
+        # enhance only needs `inventory` (from triage) — run it in the BACKGROUND while concept + director
+        # think; it finishes well before keyframes need the enhanced photos. (D45)
+        step = "concept"
+        with ThreadPoolExecutor(max_workers=1) as bg:
+            enhance_future = bg.submit(enh.enhance_assets, run, inventory, use_cache=cached("enhance"))
+            concept = concept_.run_concept(run, inventory, use_cache=cached("concept"))
+            step = "director"; brief = dir_.run_director(run, inventory, concept, use_cache=cached("director"))
+            # creative-reviewer escalation: a brief that fails its reviewer after self-retries re-rolls the
+            # upstream concept (with the director's feedback), then re-plans. Bounded; fresh runs only.
+            esc = 0
+            while (not brief.get("_review", {}).get("passed", True) and esc < config.CREATIVE_MAX_ESCALATIONS
+                   and not cached("concept") and not cached("director")):
+                esc += 1
+                run.log(f"[ESCALATION {esc}] director review unresolved — re-rolling concept with feedback")
+                concept = concept_.run_concept(run, inventory, feedback=brief["_review"].get("improvement"))
+                brief = dir_.run_director(run, inventory, concept)
+            _collect_creative_flags(run, concept, brief)
+            step = "enhance"; enhance_future.result()   # collect before the gate (re-raises a thread error here)
         if not a.no_gate and not cached("director"):
             return _approval_gate(run)
-        step = "enhance";   enh.enhance_assets(run, inventory, use_cache=cached("enhance"))
-        step = "keyframes"; keyframes = kf_.run_keyframes(run, brief, inventory, use_cache=cached("keyframes"))
-        step = "shots";     shots = shots_.run_shots(run, brief, inventory, keyframes, use_cache=cached("shots"))
-        step = "music";     music = music_.run_music(run, brief, use_cache=cached("music"))
+        # music only needs the brief — run it in the BACKGROUND during keyframes + shots (the slow stages). (D45)
+        with ThreadPoolExecutor(max_workers=1) as bg2:
+            music_future = bg2.submit(music_.run_music, run, brief, use_cache=cached("music"))
+            step = "keyframes"; keyframes = kf_.run_keyframes(run, brief, inventory, use_cache=cached("keyframes"))
+            step = "shots";     shots = shots_.run_shots(run, brief, inventory, keyframes, use_cache=cached("shots"))
+            step = "music";     music = music_future.result()
         # Visuals-first spine: fix the visual timeline to the Director's length, THEN fit the voice to
         # it, THEN render. plan_timeline runs whenever voice or editor will run fresh; it snaps cuts to
         # the music beat grid (music["beats"]).

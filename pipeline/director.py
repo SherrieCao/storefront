@@ -62,7 +62,7 @@ def run_director(run: Run, inventory: dict[str, Any], concept: dict[str, Any] | 
             run, "director", scaffold, model,
             ["inspect_asset", "trend_lookup", "design_hook"],
             user_text=json.dumps(payload, indent=2), image_paths=image_paths, video_paths=video_paths,
-            max_iterations=6,
+            max_iterations=4, thinking_level=config.DIRECTOR_THINKING_LEVEL,   # D46: faster director loop
             stub=lambda: (_stub_director(inventory), "STUB thinking: no GEMINI_API_KEY set", 0, 0))
         return _validate(parse_json(raw)), thinking
 

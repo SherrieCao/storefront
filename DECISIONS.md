@@ -561,3 +561,23 @@ Operator review of run 0026 caught two editor issues:
    COMPOSITION (polished) — the opposite of a raw problem-state image. Keyframes now shows a before-only
    beat as the PLAIN raw photo (copyfile, no composition) — also skips a fal call. (Refines D43.)
 editor-v0.10.
+
+## D45 (SHIPPED — thread-safe Run + parallel orchestration; ~90s)
+Per SPEC_parallelization. Stages waited behind dependencies they don't have. First fixed a **pre-existing
+latent race**: the `Run` object appended to trace.jsonl/run.log/REASONING.md and mutated `costs` with NO
+lock, yet `shots.py` already ran concurrently (its lock only guarded `budget.check_ceiling`, not
+`add_cost`/`trace`/`log`) — so cost could undercount (→ silently slip the $5 ceiling) and trace.jsonl
+interleave. Fix: a single `threading.RLock` on `Run` wrapping `trace`/`log`/`reason`/`add_cost`/
+`cost_total` (stress-tested: 16×500 concurrent ops → exact cost, 0 corrupt lines). Then parallelized
+`run.py`: **enhance ∥ concept+director** (bg thread, collected before the gate), **music ∥
+keyframes+shots** (bg thread), and **keyframes concurrent internally** (ThreadPoolExecutor, shared per-run
+seed KEPT for set coherence + output-identity — the spec's `seed+n` was rejected). Output-identical;
+validated offline end-to-end (run 0027). `MAX_KEYFRAME_CONCURRENCY=4`.
+
+## D46 (SHIPPED — director-loop latency: per-stage thinking + iteration cap)
+The director was ~246s/run = 4+ multimodal Gemini calls at hardcoded `thinking_level="high"`. Made
+thinking per-stage: `_thinking_config(types, model, level)` + a `thinking_level` kwarg through
+`run_agent_loop`. The Director runs at `config.DIRECTOR_THINKING_LEVEL="low"` (it EXECUTES an
+already-vetted concept); **Concept stays "high"** (protect ideation). Director agent loop capped 6→4.
+Reversible (one config line). Quality to be sanity-checked on the next real run; revert to "high" if the
+brief degrades. (Verify valid gemini-3 thinking_level values against live docs.)

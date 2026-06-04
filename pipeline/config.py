@@ -59,6 +59,10 @@ MODEL_ROUTER = {
 }
 
 CAPTURE_THINKING = True
+# Per-stage Gemini-3 thinking level. Concept (ideation) stays "high"; the Director EXECUTES an already-
+# vetted concept, so it runs at a lower level — the dominant director-latency lever (D46). Reversible:
+# set back to "high" if brief quality drops. (Verify valid gemini-3 thinking_level values at build.)
+DIRECTOR_THINKING_LEVEL = "low"
 
 # Token budgets per agentic LLM call.
 TOKEN_BUDGETS = {"director": 18_000, "shot_prompt": 4_000, "editor": 10_000, "review": 8_000}
@@ -113,6 +117,7 @@ CREATIVE_MAX_ESCALATIONS = 1         # director-review fail -> re-roll the upstr
 COST_CEILING_USD  = 5.00             # SILENT safety net (D6/D19): Director never sees cost
 COST_WARN_FRACTION = 0.8             # log a warning once cost crosses this fraction of the ceiling
 MAX_SHOT_CONCURRENCY = 4             # Seedance is ~2min/gen — fan shots out concurrently
+MAX_KEYFRAME_CONCURRENCY = 4         # Nano Banana frames are independent — generate concurrently (D45)
 
 # Editor pacing + voice-fit (social-native fast cutting)
 EDITOR_MAX_EXTENSIBLE_S = 3.0        # max hold for a single card/moodboard beat (4.0->3.0, E2 faster cuts)

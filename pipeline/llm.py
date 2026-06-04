@@ -84,12 +84,13 @@ def call_gemini_video_judge(model: str, system: str, video_path: str, user_text:
     return (resp.text or ""), None, in_tok, out_tok
 
 
-def _thinking_config(types, model: str):
-    """Gemini 3.x uses thinking_level; 2.5 uses thinking_budget (cannot be mixed). None if off."""
+def _thinking_config(types, model: str, level: str = "high"):
+    """Gemini 3.x uses thinking_level; 2.5 uses thinking_budget (cannot be mixed). None if off.
+    `level` lets a stage trade reasoning depth for latency (the Director runs lower; concept stays high)."""
     if not config.CAPTURE_THINKING:
         return None
     if "gemini-3" in model:
-        return types.ThinkingConfig(include_thoughts=True, thinking_level="high")
+        return types.ThinkingConfig(include_thoughts=True, thinking_level=level)
     return types.ThinkingConfig(include_thoughts=True, thinking_budget=-1)
 
 

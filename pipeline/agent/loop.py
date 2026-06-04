@@ -29,7 +29,8 @@ DEFAULT_MAX_ITERS = 4
 def run_agent_loop(run: Run, step: str, system: str, model: str, tool_names: list[str], *,
                    user_text: str = "", image_paths: Sequence[str] = (),
                    video_paths: Sequence[str] = (), stub: Callable[[], tuple] | None = None,
-                   max_iterations: int = DEFAULT_MAX_ITERS) -> tuple[str, str | None, int, int]:
+                   max_iterations: int = DEFAULT_MAX_ITERS,
+                   thinking_level: str = "high") -> tuple[str, str | None, int, int]:
     """Run the tool-calling loop. Returns (final_text, thinking, in_tok, out_tok) — the same
     shape callers got from a single llm call, so downstream parsing is unchanged."""
     if "gemini" not in model:
@@ -57,7 +58,7 @@ def run_agent_loop(run: Run, step: str, system: str, model: str, tool_names: lis
         force_final = it == max_iterations - 1 or total_out > budget
         cfg = types.GenerateContentConfig(
             system_instruction=system,
-            thinking_config=_thinking_config(types, model),
+            thinking_config=_thinking_config(types, model, thinking_level),
             tools=None if force_final else (tool_defs or None),
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True))
 

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import functools
 import json
+import threading
 import time
 import traceback as tb
 from dataclasses import dataclass, field
@@ -30,6 +31,10 @@ class Run:
     costs:    dict[str, float] = field(default_factory=dict)
     models:   dict[str, str]   = field(default_factory=dict)
     _t0:      float            = field(default_factory=time.time)
+    # Serializes file appends (trace/log/reason) + the costs dict so parallel stages (concurrent
+    # keyframes/shots + backgrounded enhance/music) can't interleave trace.jsonl or lose a cost update
+    # (an undercount could silently slip the $5 ceiling). RLock so reason()->trace() can re-enter. (D45)
+    _lock:    threading.RLock  = field(default_factory=threading.RLock, init=False, repr=False, compare=False)
 
     @property
     def trace_path(self)     -> Path: return self.dir / "trace.jsonl"
@@ -51,33 +56,37 @@ class Run:
     def flagged_shots_path(self) -> Path: return self.dir / "flagged_shots.json"
 
     def trace(self, event: dict[str, Any]) -> None:
-        with self.trace_path.open("a") as f:
-            f.write(json.dumps({"ts": _now(), **event}, default=str) + "\n")
+        line = json.dumps({"ts": _now(), **event}, default=str) + "\n"
+        with self._lock, self.trace_path.open("a") as f:
+            f.write(line)
 
     def log(self, line: str) -> None:
         stamped = f"[{_elapsed(self._t0)}] {line}"
         print(stamped, flush=True)
-        with self.log_path.open("a") as f:
+        with self._lock, self.log_path.open("a") as f:
             f.write(stamped + "\n")
 
     def reason(self, stage: str, thinking: str | None, rationale: str) -> None:
         """Append a stage's reasoning to REASONING.md (human-readable narrative)."""
-        with self.reasoning_path.open("a") as f:
-            f.write(f"\n## {stage}\n\n")
+        with self._lock:
+            with self.reasoning_path.open("a") as f:
+                f.write(f"\n## {stage}\n\n")
+                if thinking:
+                    f.write(f"**Thinking (model trace):**\n\n> "
+                            + thinking.replace("\n", "\n> ") + "\n\n")
+                f.write(f"**Rationale (stated):**\n\n{rationale}\n")
             if thinking:
-                f.write(f"**Thinking (model trace):**\n\n> "
-                        + thinking.replace("\n", "\n> ") + "\n\n")
-            f.write(f"**Rationale (stated):**\n\n{rationale}\n")
-        if thinking:
-            self.trace({"step": stage, "type": "thinking", "thinking": thinking})
+                self.trace({"step": stage, "type": "thinking", "thinking": thinking})
 
     def add_cost(self, step: str, amount: float) -> None:
-        self.costs[step] = round(self.costs.get(step, 0.0) + amount, 6)
+        with self._lock:
+            self.costs[step] = round(self.costs.get(step, 0.0) + amount, 6)
 
     def cost_total(self) -> float:
         """Running total across all stages. The cost ceiling (budget.py) checks this before every
         paid call."""
-        return round(sum(self.costs.values()), 6)
+        with self._lock:
+            return round(sum(self.costs.values()), 6)
 
     def note_model(self, step: str, model_id: str) -> None:
         self.models[step] = model_id

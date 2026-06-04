@@ -16,7 +16,8 @@ Stubs offline (no FAL_KEY): writes placeholder frames so downstream stages still
 NOT for: video generation (Shot Agent) or creative decisions (the Director).
 """
 from __future__ import annotations
-import json, shutil, urllib.request
+import json, shutil, threading, urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 from . import config, budget
@@ -49,7 +50,12 @@ def run_keyframes(run: Run, brief: dict[str, Any], inventory: dict[str, Any],
             f"({sum(1 for s in need if s['type']=='seedance_shot')} shot start frames, "
             f"{sum(1 for s in need if s['type']=='moodboard')} moodboard compositions)")
 
-    for seg in need:
+    # Frames are independent fal calls — generate them CONCURRENTLY (mirror shots.py). The shared per-run
+    # `seed` is KEPT (set coherence; concurrency needs no distinct seed). A lock guards the kf_map write;
+    # _make_keyframe's own budget.check_ceiling + add_cost/trace are thread-safe via the Run lock. (D45)
+    lock = threading.Lock()
+
+    def do_keyframe(seg: dict[str, Any]) -> None:
         n = seg.get("n")
         dst = out_dir / f"kf_{n}.png"
         if seg["type"] == "seedance_shot":
@@ -67,14 +73,20 @@ def run_keyframes(run: Run, brief: dict[str, Any], inventory: dict[str, Any],
             # every photo in this beat is before-role, use the raw photo directly (also skips a fal call).
             if image_urls and all(role_from_name(Path(p).name) == "before" for p in image_urls):
                 shutil.copyfile(image_urls[0], dst)
-                kf_map[str(n)] = {"path": str(dst), "mode": "preserve_before", "segment_type": seg["type"]}
+                with lock:
+                    kf_map[str(n)] = {"path": str(dst), "mode": "preserve_before", "segment_type": seg["type"]}
                 run.log(f"Keyframes: segment {n} [preserve_before] -> {dst.name} (plain before photo, no composition)")
-                continue
+                return
             mode, prompt = "moodboard", _moodboard_prompt(seg, mood)
 
         _make_keyframe(run, mode, prompt, image_urls, str(dst), seed)
-        kf_map[str(n)] = {"path": str(dst), "mode": mode, "segment_type": seg["type"]}
+        with lock:
+            kf_map[str(n)] = {"path": str(dst), "mode": mode, "segment_type": seg["type"]}
         run.log(f"Keyframes: segment {n} [{mode}] -> {dst.name}")
+
+    workers = max(1, min(config.MAX_KEYFRAME_CONCURRENCY, len(need)))
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        list(ex.map(do_keyframe, need))            # ex.map re-raises the first worker exception here
 
     cache.write_text(json.dumps(kf_map, indent=2))
     run.reason("Keyframes", None,
