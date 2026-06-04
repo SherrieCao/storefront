@@ -59,10 +59,11 @@ MODEL_ROUTER = {
 }
 
 CAPTURE_THINKING = True
-# Per-stage Gemini-3 thinking level. Concept (ideation) stays "high"; the Director EXECUTES an already-
-# vetted concept, so it runs at a lower level — the dominant director-latency lever (D46). Reversible:
-# set back to "high" if brief quality drops. (Verify valid gemini-3 thinking_level values at build.)
-DIRECTOR_THINKING_LEVEL = "low"
+# Per-stage Gemini-3 thinking level (the plumbing is retained for future tuning). Tried "low" for the
+# Director (D46) but a real run (0029) showed NO latency win — the director loop is dominated by RETRY
+# COUNT (review fails), not per-call thinking — and lower thinking risks more fails. Reverted to "high":
+# no downside, protects execution quality. The real director-latency lever is fewer retries, not thinking.
+DIRECTOR_THINKING_LEVEL = "high"
 
 # Token budgets per agentic LLM call.
 TOKEN_BUDGETS = {"director": 18_000, "shot_prompt": 4_000, "editor": 10_000, "review": 8_000}

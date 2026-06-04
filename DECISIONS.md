@@ -582,6 +582,14 @@ already-vetted concept); **Concept stays "high"** (protect ideation). Director a
 Reversible (one config line). Quality to be sanity-checked on the next real run; revert to "high" if the
 brief degrades. (Verify valid gemini-3 thinking_level values against live docs.)
 
+**UPDATE (REVERTED to "high"):** real run 0029 showed NO latency win — the director ran 3 attempts
+(~246s, same as before) because the loop is dominated by RETRY COUNT (review fails), not per-call
+thinking; lower thinking also risks more fails. Set `DIRECTOR_THINKING_LEVEL="high"` (no downside, protects
+quality). The per-stage thinking PLUMBING + the 6→4 iteration cap are RETAINED (harmless; cap is the
+default and caused no issue). **The real director-latency lever is fewer retries, not thinking depth** —
+the open follow-up. (Also newly visible in 0029: the single-pass editor-agent call is ~200s — a separate
+latency sink worth a look.)
+
 ## D47 (SHIPPED — de-AI pass: phone-camera keyframes + temporal post-processing)
 Per SPEC_deai_postprocess: seedance_shot clips read as "AI" next to the real footage. Two layers, applied
 ONLY to seedance_shot:
