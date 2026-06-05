@@ -144,6 +144,13 @@ an ad feel unfinished. The target is 25–30s, so write a script that fills it: 
 running short — you can't go below 25s, so a thin ~20-word script will leave the back half silent.
 `script_reasoning` MUST state the word count + the estimated spoken seconds vs `total_duration_s`. Don't
 pad with filler — develop the ONE idea (still no CTA/logistics); white space is fine but not half the ad.
+- **Non-verbal cue — OPTIONAL, at most ONE, only if earned.** You MAY place a single performed-emotion
+  audio tag in `speech` when a beat genuinely warrants it: `[excited]` on a real enthusiasm beat (often
+  the hook), `[laughs softly]` on a wry/playful line, or `[whispers]`/`[casual]` for an intimate aside.
+  Put it at a NATURAL pause (sentence start or end), not glued mid-phrase. **NEVER** use breath/body-sound
+  tags (`[exhales]`, `[sighs]`, `[breathes]`) — they sound fake. **Default to NONE** — a straightforward
+  line gets no tag; one genuine micro-moment beats a performance. (The pipeline enforces ≤1 + the
+  whitelist and strips tags from captions, so a flat or over-tagged line is safe — but you own the choice.)
 - **Write FLOWING speech, not a pause-heavy list.** Do NOT write a script as labeled list items read
   as separate sentences (e.g. "9 AM: Offsite networking. 11 AM: Wellness. 1 PM: …") — the TTS inserts
   a long pause at each item and the voiceover balloons (this caused a 25s read of a 31-word script).

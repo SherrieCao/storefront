@@ -124,6 +124,10 @@ MAX_KEYFRAME_CONCURRENCY = 4         # Nano Banana frames are independent — ge
 DEAI_ENABLED = True
 DEAI_DEFAULT_INTENSITY = "moderate"  # light | moderate | heavy
 DEAI_CRF = 20                        # grain needs bitrate — keep ≤ 23
+# Non-verbal voice cues (D48): allow the Director ≤1 PERFORMED-EMOTION audio tag ([excited]/[laughs
+# softly]/[whispers]); voice.py whitelists + caps + strips them from captions. Synthetic body-sounds
+# ([exhales]/[sighs]) are banned (they read fake). False = strip all tags before TTS.
+VOICE_AUDIO_TAGS_ENABLED = True
 
 # Editor pacing + voice-fit (social-native fast cutting)
 EDITOR_MAX_EXTENSIBLE_S = 3.0        # max hold for a single card/moodboard beat (4.0->3.0, E2 faster cuts)
@@ -154,7 +158,7 @@ REVIEW_CACHE_TTL_DAYS = 7
 # ---------------------------------------------------------------------------
 SCAFFOLD_VERSIONS = {
     "concept":           "concept-v0.6",     # 25–30s target (was 15s framing)
-    "creative_director": "director-v1.17",   # 25–30s duration + pacing/script sizing retuned (was ~15–20s)
+    "creative_director": "director-v1.18",   # +optional ≤1 performed-emotion audio tag (D48)
     "prompt_translator": "shot-prompt-v1.2", # real texture but FLATTERING; true color (don't dull the hero result)
     "shot_agent":        "shot-agent-v0.4",  # synthetic-only soft signal; never flag a clean/flattering/vivid result
     "editor":            "editor-v0.10",     # no fabricated contact in overlays (D44); before/after reveal (D43)

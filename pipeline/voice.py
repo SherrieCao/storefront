@@ -67,6 +67,50 @@ def _select_voice(inventory: dict[str, Any]) -> tuple[str, float]:
     return voice, _STABILITY.get(voice, 0.35)
 
 
+# --- Non-verbal audio tags (D48) ---------------------------------------------------------------
+# ElevenLabs v3 renders inline [bracketed] cues. PERFORMED-EMOTION/delivery tags land convincingly;
+# synthetic body-sounds ([exhales]/[sighs]/[breathes]) read as FAKE (operator-verified) and are BANNED.
+# Cap: ONE tag per script (more = obvious performance = a TTS tell). The fal endpoint echoes tags into the
+# timestamp stream, so captions must strip them (_drop_tag_chars) — else "[excited]" shows on screen.
+_TAG_RE = re.compile(r"\[([^\[\]]+)\]")
+_VOICE_TAG_WHITELIST = {"excited", "laughs", "laughs softly", "chuckles", "casual",
+                        "conversational", "warmly", "whispers"}
+
+
+def _sanitize_voice_tags(speech: str) -> str:
+    """Enforce the audio-tag policy on the Director's speech before TTS: keep only ONE whitelisted
+    performed-emotion tag, drop the rest (banned body-sounds + any excess). Belt-and-suspenders over the
+    Director scaffold's gating. If tags are disabled, strip them all."""
+    if not config.VOICE_AUDIO_TAGS_ENABLED:
+        return re.sub(r"\s{2,}", " ", _TAG_RE.sub("", speech)).strip()
+    kept = 0
+    def repl(m: "re.Match") -> str:
+        nonlocal kept
+        if kept == 0 and m.group(1).strip().lower() in _VOICE_TAG_WHITELIST:
+            kept += 1
+            return m.group(0)        # keep this one (sent to TTS to be performed)
+        return ""                    # drop banned (e.g. [exhales]) or excess tags
+    return re.sub(r"\s{2,}", " ", _TAG_RE.sub(repl, speech)).strip()
+
+
+def _strip_tags(text: str) -> str:
+    return re.sub(r"\s{2,}", " ", _TAG_RE.sub("", text)).strip()
+
+
+def _drop_tag_chars(chars: list, starts: list, ends: list) -> tuple[list, list, list]:
+    """Remove v3 audio-tag spans ('[laughs softly]') from the char timeline so tags never reach captions.
+    The tag still occupies audio time (the voice performed it) — only the displayed text/words drop it."""
+    out_c, out_s, out_e, in_tag = [], [], [], False
+    for ch, s, e in zip(chars, starts, ends):
+        if ch == "[":
+            in_tag = True; continue
+        if ch == "]":
+            in_tag = False; continue
+        if not in_tag:
+            out_c.append(ch); out_s.append(s); out_e.append(e)
+    return out_c, out_s, out_e
+
+
 def run_voice(run: Run, brief: dict[str, Any], timeline: dict[str, Any],
               inventory: dict[str, Any] | None = None, *, use_cache: bool = False) -> dict[str, Any]:
     out_dir = run.dir / VOICE_DIR
@@ -76,6 +120,7 @@ def run_voice(run: Run, brief: dict[str, Any], timeline: dict[str, Any],
         run.log("Voice: loaded from cache"); return json.loads(cache.read_text())
 
     text = (brief.get("speech") or brief.get("script") or "").strip()
+    text = _sanitize_voice_tags(text)   # ≤1 whitelisted performed-emotion tag; bans [exhales] etc. (D48)
     target_s = float(timeline.get("total_s") or brief.get("total_duration_s") or config.MIN_DURATION_S)
     mp3 = out_dir / "voiceover.mp3"
     voice_id, stability = _select_voice(inventory or {})   # gender > region > vertical (operator policy)
@@ -87,8 +132,9 @@ def run_voice(run: Run, brief: dict[str, Any], timeline: dict[str, Any],
 
     if not config.FAL_KEY:
         _silent_mp3(str(mp3), target_s)
-        lines = _even_lines(text, target_s)
-        words = _even_words(text, target_s)
+        clean = _strip_tags(text)                          # stub captions: no audio model to perform tags
+        lines = _even_lines(clean, target_s)
+        words = _even_words(clean, target_s)
         run.log(f"Voice: STUB silent mp3 ({target_s:.1f}s, {len(lines)} lines)")
         result = {"audio_path": str(mp3), "duration_ms": int(target_s * 1000),
                   "lines": lines, "words": words}
@@ -141,6 +187,7 @@ def _words_from_timestamps(chunks: list[dict]) -> list[dict[str, Any]]:
         chars += (c.get("characters") or [])
         starts += (c.get("character_start_times_seconds") or [])
         ends += (c.get("character_end_times_seconds") or [])
+    chars, starts, ends = _drop_tag_chars(chars, starts, ends)   # tags never reach captions (D48)
     n = min(len(chars), len(starts), len(ends))
     out, buf, first = [], "", None
     for i in range(n):
@@ -170,6 +217,7 @@ def _lines_from_timestamps(chunks: list[dict]) -> list[dict[str, Any]]:
         chars += cs
         starts += (c.get("character_start_times_seconds") or [])
         ends += (c.get("character_end_times_seconds") or [])
+    chars, starts, ends = _drop_tag_chars(chars, starts, ends)   # tags never reach captions (D48)
     n = min(len(chars), len(starts), len(ends))
     if not n:
         return []

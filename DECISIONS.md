@@ -609,3 +609,18 @@ ONLY to seedance_shot:
 Validated: deai_clip → valid 1080x1920 mp4 for all presets; offline E2E (run 0028) fires de-AI, preserves
 raw, editor uses _deai. PENDING real-run/operator: keyframe visual quality + seedance-vs-real_clip blend +
 intensity tuning.
+
+## D48 (SHIPPED — non-verbal voice cues: performed-emotion tags, gated)
+Operator A/B (run 0029 line, Laura): ElevenLabs v3 renders PERFORMED-EMOTION tags convincingly
+([excited] hook, [laughs softly] wry line) but a synthetic [exhales] sounds FAKE. And the fal endpoint
+echoes tags into the timestamp stream → they'd show as caption TEXT. So:
+- **Director (creative_director.md v1.18):** MAY place AT MOST ONE performed-emotion tag in `speech`, only
+  when a beat earns it ([excited]/[laughs softly]/[whispers]/[casual]), at a natural pause; NEVER
+  breath/body-sound tags ([exhales]/[sighs] — they read fake); default NONE.
+- **voice.py enforcement (belt-and-suspenders):** `_sanitize_voice_tags` keeps only ONE whitelisted tag,
+  drops banned/excess (and strips all if `VOICE_AUDIO_TAGS_ENABLED=False`). `_drop_tag_chars` strips
+  `[...]` spans from the caption/word builders so tags are PERFORMED in audio but never appear on screen
+  (the tag still occupies audio time). Stub path strips tags for its captions too.
+Validated: sanitizer keeps [excited] only / bans [exhales]; a real fal call with [excited] → clean
+captions, words intact. The breath route (real spliced samples) was rejected (the tag is fake; raw breaths
+would be a separate heavier effort). PENDING: hear a Director-placed tag in a full real run.
