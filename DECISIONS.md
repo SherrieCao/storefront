@@ -636,3 +636,15 @@ voice via region-first routing, 3/3 seedance approved). SMB phones routinely pro
 filenames, so this is a real-world gate. (Follow-up: errors.classify_api_error should not map an
 ascii-encode error to "authentication failed".)
 > **EXTENDED (D49b):** the SAME bug hit Gemini's Files API video upload (THE MUSE SF, run 0032 — emoji-named .mp4 reels crashed concept with an UNCLASSIFIED UnicodeEncodeError in httpx). Hoisted the fix into a shared `llm.ascii_safe_path` applied at ALL upload sites: fal (keyframes) + Gemini video uploads (call_gemini_multimodal, call_gemini_video_judge, agent loop). Images are inline bytes so they were never affected. Verified: 0032 concept then cleared the upload and proceeded.
+
+## D50 (SHIPPED — voice-length guard: script must fit the video, no atempo crush)
+THE MUSE SF (run 0032) exposed two coupled defects: (1) the Director wrote a ~28s script for a video whose
+beats summed to only ~20s, so the editor sped the voice to the 1.55× atempo CAP — rushed/chipmunky; (2)
+relatedly the video ran short of the 25–30s target. The existing `_voice_coverage_feedback` only catches
+the UNDER case (voice ends early → silent tail). Added `_voice_length_feedback` (the OVER case): estimate
+spoken seconds (words / 2.4) vs the video's spoken region = (SUM OF BEAT DURATIONS − ending card) — the
+editor fits to the BEATS, not the stated total_duration_s. Fire above ~1.2× (a comfortable atempo) →
+regen feedback: cut the script AND/OR add/lengthen beats so the video fills 25–30s (and beat durations
+must sum to ~total_duration_s). Catches both the crush and the short-video-fill in one guard. Unit-tested
+(fires 67w/20s, quiet 36w/20s); director-v1.19. The 0032 video itself was hand-fixed (coherent ~36-word
+script, voice now plays at natural speed) + re-rendered.

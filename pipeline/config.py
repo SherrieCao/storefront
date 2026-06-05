@@ -158,7 +158,7 @@ REVIEW_CACHE_TTL_DAYS = 7
 # ---------------------------------------------------------------------------
 SCAFFOLD_VERSIONS = {
     "concept":           "concept-v0.6",     # 25–30s target (was 15s framing)
-    "creative_director": "director-v1.18",   # +optional ≤1 performed-emotion audio tag (D48)
+    "creative_director": "director-v1.19",   # +voice-length guard: script must fit the video, no atempo crush (D50)
     "prompt_translator": "shot-prompt-v1.2", # real texture but FLATTERING; true color (don't dull the hero result)
     "shot_agent":        "shot-agent-v0.4",  # synthetic-only soft signal; never flag a clean/flattering/vivid result
     "editor":            "editor-v0.10",     # no fabricated contact in overlays (D44); before/after reveal (D43)

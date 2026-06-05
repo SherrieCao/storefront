@@ -84,13 +84,15 @@ def run_director(run: Run, inventory: dict[str, Any], concept: dict[str, Any] | 
         mood_fb = _moodboard_feedback(run, brief, inventory)
         clip_fb = _clip_reuse_feedback(run, brief, inventory)
         cov_fb = _voice_coverage_feedback(run, brief)
+        vlen_fb = _voice_length_feedback(run, brief)
         persp_fb = _perspective_feedback(run, brief)
         ba_fb = _before_after_feedback(run, brief, inventory)
         passed = (verdict["pass"] and not pace_fb and not mood_fb and not clip_fb and not cov_fb
-                  and not persp_fb and not ba_fb)
+                  and not vlen_fb and not persp_fb and not ba_fb)
         lenses = (list(verdict["failed_lenses"]) + (["pacing_too_slow"] if pace_fb else [])
                   + (["moodboard_reuse"] if mood_fb else []) + (["clip_reuse"] if clip_fb else [])
                   + (["voice_undercovers"] if cov_fb else [])
+                  + (["voice_crushed" ] if vlen_fb else [])
                   + (["first_person_mismatch"] if persp_fb else [])
                   + (["before_after_not_obvious"] if ba_fb else []))
         attempts.append({"attempt": attempt, "passed": passed, "scores": verdict["scores"],
@@ -100,7 +102,7 @@ def run_director(run: Run, inventory: dict[str, Any], concept: dict[str, Any] | 
             break
         fb = "  ".join(p for p in (verdict["improvement"] if not verdict["pass"] else "",
                                    pace_fb or "", mood_fb or "", clip_fb or "", cov_fb or "",
-                                   persp_fb or "", ba_fb or "") if p)
+                                   vlen_fb or "", persp_fb or "", ba_fb or "") if p)
         run.log(f"Director: attempt {attempt} regenerating ({lenses})")
     if not cands:
         raise RuntimeError("Director returned an empty/invalid brief after retries")
@@ -203,6 +205,35 @@ def _voice_coverage_feedback(run: Run, brief: dict[str, Any]) -> str | None:
             f"~{total - est_vo:.0f}s of SILENT video. Fix it: (a) develop the idea to ~{target_words} "
             f"words (still hook + ONE idea, NO CTA — just more of the same thread){fix_b}. "
             f"Match length to content.")
+
+
+def _voice_length_feedback(run: Run, brief: dict[str, Any]) -> str | None:
+    """Guard the OTHER direction: a script too LONG for the video gets CRUSHED. The editor atempo-fits the
+    voice to the video, capped at VOICE_MAX_ATEMPO — so an over-long script is sped up and sounds rushed/
+    chipmunky (run 0032: ~28s script over a ~20s video = 1.55× = the cap). Compare the estimated spoken
+    seconds to the video's spoken region = (SUM OF BEAT DURATIONS − ending card); the editor fits to the
+    beats, NOT the stated total_duration_s, so a plan whose beats sum short is the real culprit. Fire above
+    ~1.2× (a comfortable atempo). None if fine. Complements _voice_coverage_feedback (the UNDER case)."""
+    segs = brief.get("segments", [])
+    script = str(brief.get("speech") or brief.get("script") or "")
+    words = len(script.split())
+    if not segs or words == 0:
+        return None
+    vid = sum(float(s.get("duration_s") or 0) for s in segs)
+    region = max(1.0, vid - config.ENDING_CARD_S)
+    est_vo = words / _SPOKEN_WPS
+    ratio = est_vo / region
+    run.log(f"Director: voice-length check — {words} words ≈ {est_vo:.1f}s VO vs ~{region:.1f}s region "
+            f"(beats sum {vid:.1f}s) = {ratio:.2f}×")
+    if ratio <= 1.2:
+        return None
+    target_words = int(region * 1.1 * _SPOKEN_WPS)
+    return (f"SCRIPT TOO LONG — THE VOICE WILL BE CRUSHED: ~{words} words (~{est_vo:.0f}s spoken) over a "
+            f"video whose beats sum to only ~{vid:.0f}s (~{region:.0f}s before the "
+            f"{config.ENDING_CARD_S:.0f}s card) — the voice gets sped up {ratio:.2f}× and sounds rushed. "
+            f"Match the spoken length to the video: cut the script to ~{target_words} words, AND/OR add or "
+            f"lengthen beats so the video fills {config.MIN_DURATION_S}–{config.MAX_DURATION_S}s. (Your "
+            f"beat durations must also sum to about your total_duration_s.)")
 
 
 def _moodboard_feedback(run: Run, brief: dict[str, Any], inventory: dict[str, Any]) -> str | None:
