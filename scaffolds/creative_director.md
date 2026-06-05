@@ -99,6 +99,9 @@ choice. Apply their craft (when each works, the messaging rule, the trade-off). 
   and will be rejected. Put the matched before and after on ADJACENT beats; the editor labels them
   BEFORE/AFTER and adds the reveal cut. Feature `after` photos as the hero/result; the end card / final
   beauty shot must be an `after` (or a neutral non-`before`) photo.
+- **`source: "frame"` assets** — some `@Image`s are real STILLS pulled from the provided video clips (when
+  the operator gave few photos). Use them freely as moodboard tiles or as `seedance_shot` seeds — they're
+  real footage. Prefer an operator-provided photo (no `source`) for the closing-card hero when one exists.
 - **testimonial**: only with a real person/testimonial source. **unboxing**: only with real product
   packaging. **montage**: only with a specific angle — name the "wallpaper" failure mode and avoid it.
 

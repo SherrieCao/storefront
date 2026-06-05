@@ -401,6 +401,8 @@ def _asset_summary(inv: dict) -> list[dict]:
             row["remediation"] = a.get("remediation", [])
             if a.get("role"):
                 row["role"] = a["role"]          # before/after (operator filename label) — see hard rules
+            if a.get("source"):
+                row["source"] = a["source"]      # "frame" = a still pulled from a video clip (D52)
         elif a.get("type") == "video":
             row["length_s"] = a.get("duration_s")   # full source; real_clip trim_s picks the window
         out.append(row)

@@ -11,9 +11,11 @@ from __future__ import annotations
 
 import json
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
+from . import config
 from .tracing import Run, traced_tool, set_active_run
 
 TRIAGE_FILE = "00_triage.json"
@@ -213,6 +215,27 @@ for _f in TOOLS:
     _registry.register_fn(_f)
 
 
+def _extract_frames(video_path: str, n: int, dur_s: float, out_dir: Path) -> list[str]:
+    """Pull up to `n` representative still frames from a video, spread across it. ffmpeg's `thumbnail`
+    filter picks the most representative (non-blurry) frame near each seek point — not a random transition
+    frame. ASCII-safe output names (the source may be emoji-named). Returns saved paths (best-effort)."""
+    out: list[str] = []
+    dur = dur_s or 6.0
+    stem = (Path(video_path).stem[:24].encode("ascii", "ignore").decode() or "clip").strip() or "clip"
+    for i in range(n):
+        t = dur * (i + 1) / (n + 1)                       # spread (1/3, 2/3 for n=2)
+        dst = out_dir / f"frame_{stem}_{i}.jpg"
+        try:
+            r = subprocess.run(["ffmpeg", "-y", "-ss", f"{t:.2f}", "-i", video_path,
+                                "-vf", "thumbnail=n=30", "-frames:v", "1", "-q:v", "3", str(dst)],
+                               capture_output=True, timeout=30)
+            if r.returncode == 0 and dst.exists():
+                out.append(str(dst))
+        except Exception:
+            pass
+    return out
+
+
 def run_triage(run: Run, input_dir: Path, *, use_cache: bool = False) -> dict[str, Any]:
     cache = run.dir / TRIAGE_FILE
     if use_cache and cache.exists():
@@ -244,6 +267,29 @@ def run_triage(run: Run, input_dir: Path, *, use_cache: bool = False) -> dict[st
     for a, p in zip(img_assessments, photo_paths):
         a["role"] = role_from_name(p.name)        # before/after from the operator's filename, or None
     vid_assessments = [assess_video(str(p)) for p in videos]
+
+    # Frame extraction (D52): when operator PHOTOS are scarce, pull representative stills from the videos
+    # so the Director can compose moodboards + seed seedance shots even from a video-only submission. Real
+    # frames from the business's own footage > generated fill. Tagged source="frame"; capped to MAX_REF_IMAGES.
+    recoverable = sum(1 for a in img_assessments if a.get("recoverable"))
+    usable_vids = [v for v in vid_assessments if v.get("usable_as_reference")]
+    if config.FRAME_EXTRACT_ENABLED and recoverable < config.PHOTOS_SCARCE_THRESHOLD and usable_vids:
+        frames_dir = snap / "_frames"; frames_dir.mkdir(exist_ok=True)
+        room = max(0, config.MAX_REF_IMAGES - recoverable)        # never exceed the @Image cap
+        extracted = 0
+        for v in usable_vids:
+            if extracted >= room:
+                break
+            for fp in _extract_frames(v["path"], min(config.FRAMES_PER_VIDEO, room - extracted),
+                                      v.get("duration_s") or 6.0, frames_dir):
+                fa = assess_image(fp)                             # real quality assessment + remediation
+                fa["role"] = None
+                fa["source"] = "frame"                            # a still pulled from a real clip
+                fa["note"] = f"frame from {Path(v['path']).name[:30]} — {fa.get('note', '')}"
+                img_assessments.append(fa); extracted += 1
+        if extracted:
+            run.log(f"Triage: photos scarce ({recoverable}) — extracted {extracted} still frame(s) from "
+                    f"{len(usable_vids)} video(s) for moodboards/seedance seeds")
 
     biz_name, location, brief, contact = _load_brief(snap, run.business)
     ba = parse_before_after(brief, [p.name for p in photo_paths])

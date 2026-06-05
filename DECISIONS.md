@@ -669,3 +669,16 @@ video and ESCALATES. Built a closed loop:
 Validated offline (run 0033, stub voice ×1.5): loop fired ×2, capped at 1.2×, flagged, completed. The
 asset-gen branch is the rare last resort (unexercised in the test; import-validated). Real-run tuning
 (does the Director resolve the loop; firing frequency) is the next operator check.
+
+## D52 (SHIPPED — extract stills from videos when photos are scarce)
+Run 0034 (Simply Unique Nails: 0 photos, 8 videos) exposed it: with no photos, the Director can't compose
+moodboards or seed seedance shots (a `seedance_shot` needs an `@Image`), so it fell back to an all-
+real_clip ad — thinner than it could be. Fix (operator-directed): when operator PHOTOS are scarce, triage
+extracts representative STILLS from the provided videos and registers them as recoverable `@Image` assets,
+so the Director can make moodboards + seed seedance from real footage (real frames > generated fill; fully
+inside the bright line). Settings: **scarce-triggered** (`recoverable photos < PHOTOS_SCARCE_THRESHOLD=4`);
+~`FRAMES_PER_VIDEO=2` via ffmpeg's `thumbnail` filter (representative/non-blurry, spread across the clip),
+capped to `MAX_REF_IMAGES`; tagged `source:"frame"` (surfaced in the Director's asset summary; the scaffold
+says use them for moodboards/seeds but prefer an operator photo for the closing-card hero). ASCII-safe
+frame names. Verified: 2 frames extracted from a real emoji-named clip. This also reduces reliance on
+D51's synthetic asset-gen (a real frame beats a generated one). director-v1.20.
