@@ -64,7 +64,8 @@ feels generic or fake.
 ### Streamlined, end to end
 
 One command runs the whole studio. Each stage is a focused "thinking" step with deterministic plumbing
-between them:
+between them. The arrows below are the *happy path* — but it is **not a one-pass cascade**: most stages
+are self-correcting loops, and two stages can send the work *back upstream* (see [The loops](#the-loops--its-not-a-one-pass-cascade)).
 
 ```
  triage → concept → director → enhance → keyframes → shots → music → voice → editor → review
@@ -106,6 +107,41 @@ output; the split is the quality lever.
 | **Director** — intent per shot, pacing | **Shot Agent** — composes each per-shot prompt |
 | **Director** — `pacing` / `editing_feel` | **Editor Agent** — a concrete edit plan |
 | **Editor Agent** — the plan | **Remotion** — deterministic render to mp4 |
+
+### The loops — it's not a one-pass cascade
+
+If the split is *who* decides, the **loops** are *how the system refuses to ship its first draft.* Almost
+every "thinking" stage produces → gets critiqued by a separate mind (or a hard rule) → regenerates with
+that feedback baked in — bounded, then **accept-best + flag** (nothing fails silently). And two stages
+escalate *backwards* when they can't fix things locally.
+
+```
+        ┌── critic loop ──┐   ┌── critic loop + 7 guards ──┐   ┌─ judge loop (per shot) ─┐
+triage → │    CONCEPT     │ → │         DIRECTOR           │ → │   SHOTS                  │ → music → voice → EDITOR → review
+        └─────────────────┘   └────────────────────────────┘   └──────────────────────────┘                      │
+                  ▲                      ▲                                                                          │
+                  └─ re-roll concept ◀───┘ (brief fails review)        voice won't fit ≤1.2× → re-plan ◀───────────┘
+```
+
+- **Concept critic loop** — produces a concept, a *separate-mind* reviewer scores 4 lenses (audience /
+  attention / SMB-fit / appeal); fail → regenerate with the critique; bounded retries → keep the best.
+- **Director critic loop** — same produce→review→regenerate, **plus 7 deterministic guards** that bind in
+  *code* (pacing, moodboard reuse, clip reuse, voice coverage, **script-fits-the-video**, asset-grounded
+  perspective, **before/after adjacency**) — because prose guidance in a prompt doesn't reliably hold.
+- **Concept ↔ Director escalation** — if the brief still fails its reviewer after the Director's own
+  retries, the work is re-rolled at the *Concept* stage with the Director's feedback (the cliché can't be
+  the fallback).
+- **Shot Agent loop** — per shot: generate → a *different* model judges the rendered clip as video →
+  approve, or retry ≤3 with the judge's reasons fed forward → flag after 3. Never silently ships a
+  least-bad shot.
+- **Voice-fit escalation** — the editor checks the *realized* video against the script; if the voice
+  can't fit at ≤1.2×, it sends the plan **back to the Director** (add beats / cut script), then synthesizes
+  fill assets as a last resort — rather than crushing the audio. Bounded; ships at the cap + a flag if
+  truly impossible.
+
+Bounded retries + accept-best + flags everywhere mean the loops *raise* the floor without ever hanging or
+silently degrading. (The editor's own critic loop exists too but is currently single-pass for latency —
+its deterministic realizers do the guaranteeing.)
 
 ### Why you can trust the output
 

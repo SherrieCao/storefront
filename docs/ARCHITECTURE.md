@@ -51,6 +51,22 @@ triage → concept → director → enhance → keyframes → shots → music �
 - **review** — mechanical checks only on the FINAL video (playable, duration, not black). Per-shot quality
   already judged in `shots`; creative judgment is the operator's (`06_operator_review.json`).
 
+## The loops (it is NOT a one-pass cascade)
+The arrows above are the happy path. Almost every thinking stage is a produce → separate-mind critique →
+regenerate loop (bounded by `MAX_CREATIVE_RETRIES`/`MAX_SHOT_RETRIES`, then **accept-best + flag** — never
+silent), and two stages escalate *backwards*:
+- **Concept critic loop** — produce → 4-lens reviewer (`reviewers.review`) → regenerate.
+- **Director critic loop** — produce → reviewer **+ 7 deterministic guards** (pacing / moodboard reuse /
+  clip reuse / voice coverage / voice length D50 / perspective / before-after adjacency) → regenerate.
+- **Concept ↔ Director escalation** — brief still fails review after the Director's retries → re-roll the
+  *Concept* with feedback (`CREATIVE_MAX_ESCALATIONS`).
+- **Shot Agent loop** — per shot: generate → a *separate* Gemini-Flash judge → retry ≤3 → flag.
+- **Voice-fit escalation** (D50/D51) — editor checks the realized video vs the script → re-plan via the
+  Director (→ one-shot asset-gen) → re-voice, bounded (`EDITOR_MAX_ESCALATIONS`); ship at the 1.2× cap +
+  flag if impossible.
+- (The editor's own critic loop exists but is single-pass / disabled for latency — D42; deterministic
+  realizers guarantee the output instead.)
+
 ## Concurrency + thread safety (DECISIONS D45)
 Stages that don't depend on each other run in parallel: **enhance ∥ concept+director**, **music ∥
 keyframes+shots**, and keyframes/shots fan out internally. The `Run` object is thread-safe (a single
