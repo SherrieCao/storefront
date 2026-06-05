@@ -128,13 +128,28 @@ def _moodboard_prompt(seg: dict[str, Any], mood: str) -> str:
             + _STYLE_SUFFIX)
 
 
+def _fal_upload(path: str) -> str:
+    """Upload to fal, robust to non-ASCII filenames. `fal_client.upload_file` ASCII-encodes the filename
+    into the multipart header, so a photo named with emoji/accents (common from SMB phones — e.g. a nail
+    studio's '🌊ocean.jpg') crashes every upload backend and gets MISreported as 'authentication failed'.
+    Copy to an ASCII-safe temp name first when needed."""
+    import fal_client
+    if Path(path).name.isascii():
+        return fal_client.upload_file(path)
+    import tempfile
+    tmp = tempfile.NamedTemporaryFile(suffix=Path(path).suffix or ".bin", delete=False)
+    tmp.close()
+    shutil.copyfile(path, tmp.name)
+    return fal_client.upload_file(tmp.name)
+
+
 def _make_keyframe(run: Run, mode: str, prompt: str, image_urls: list[str], dst: str, seed: int) -> None:
     if not config.FAL_KEY:
         _stub_keyframe(mode, image_urls, dst)
         run.log(f"Keyframes: STUB {Path(dst).name} ({mode})")
         return
     import fal_client
-    urls = [fal_client.upload_file(p) for p in image_urls] if image_urls else []
+    urls = [_fal_upload(p) for p in image_urls] if image_urls else []
     # Nano Banana intermittently returns no_media_generated for a given (prompt, image, seed); the result
     # is DETERMINISTIC per seed, so a plain retry would repeat it — vary the seed each attempt. If it
     # still won't generate, fall back to the real photo rather than killing the whole run (we already

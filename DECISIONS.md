@@ -624,3 +624,14 @@ echoes tags into the timestamp stream → they'd show as caption TEXT. So:
 Validated: sanitizer keeps [excited] only / bans [exhales]; a real fal call with [excited] → clean
 captions, words intact. The breath route (real spliced samples) was rejected (the tag is fake; raw breaths
 would be a separate heavier effort). PENDING: hear a Director-placed tag in a full real run.
+
+## D49 (SHIPPED — fal upload robust to non-ASCII filenames)
+Conway Nail Bar (run 0031) died at keyframes with "authentication failed" — a MISCLASSIFICATION. The real
+cause: the nail photos were named with emoji (🌊ocean, 🌸floral). `fal_client.upload_file` ASCII-encodes
+the filename into the multipart header, so every upload backend (fal_v3/cdn/fal) crashed with
+"'ascii' codec can't encode character" and the error classifier mislabeled it as auth failure (sent us
+chasing credits twice). Fix: `keyframes._fal_upload` copies the asset to an ASCII-safe temp name before
+upload when the basename isn't ASCII. Verified: 0031 keyframes then cleared, run completed ($3.62, Aria
+voice via region-first routing, 3/3 seedance approved). SMB phones routinely produce emoji/accented
+filenames, so this is a real-world gate. (Follow-up: errors.classify_api_error should not map an
+ascii-encode error to "authentication failed".)
