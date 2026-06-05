@@ -635,3 +635,4 @@ upload when the basename isn't ASCII. Verified: 0031 keyframes then cleared, run
 voice via region-first routing, 3/3 seedance approved). SMB phones routinely produce emoji/accented
 filenames, so this is a real-world gate. (Follow-up: errors.classify_api_error should not map an
 ascii-encode error to "authentication failed".)
+> **EXTENDED (D49b):** the SAME bug hit Gemini's Files API video upload (THE MUSE SF, run 0032 — emoji-named .mp4 reels crashed concept with an UNCLASSIFIED UnicodeEncodeError in httpx). Hoisted the fix into a shared `llm.ascii_safe_path` applied at ALL upload sites: fal (keyframes) + Gemini video uploads (call_gemini_multimodal, call_gemini_video_judge, agent loop). Images are inline bytes so they were never affected. Verified: 0032 concept then cleared the upload and proceeded.

@@ -134,13 +134,8 @@ def _fal_upload(path: str) -> str:
     studio's '🌊ocean.jpg') crashes every upload backend and gets MISreported as 'authentication failed'.
     Copy to an ASCII-safe temp name first when needed."""
     import fal_client
-    if Path(path).name.isascii():
-        return fal_client.upload_file(path)
-    import tempfile
-    tmp = tempfile.NamedTemporaryFile(suffix=Path(path).suffix or ".bin", delete=False)
-    tmp.close()
-    shutil.copyfile(path, tmp.name)
-    return fal_client.upload_file(tmp.name)
+    from .llm import ascii_safe_path                    # shared fix: fal + Gemini uploads
+    return fal_client.upload_file(ascii_safe_path(path))
 
 
 def _make_keyframe(run: Run, mode: str, prompt: str, image_urls: list[str], dst: str, seed: int) -> None:

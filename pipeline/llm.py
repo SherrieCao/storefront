@@ -8,10 +8,23 @@ is absent, a caller-supplied `stub` produces offline text so the pipeline runs e
 Verified request shapes against Phase-0 spikes (docs/{judge,voice,...}_findings.md).
 """
 from __future__ import annotations
-import json, mimetypes, time
+import json, mimetypes, shutil, tempfile, time
 from pathlib import Path
 from typing import Any, Callable
 from . import config
+
+
+def ascii_safe_path(path: str) -> str:
+    """Return an ASCII-named copy of `path` when its basename has non-ASCII chars (emoji/accents), else
+    `path`. Upload clients (fal_client, google-genai Files API) put the filename in an HTTP header and
+    ascii-encode it, so a phone-sourced name like '#summer☀️.mp4' or '#aprésgelx.jpg' crashes the upload
+    (UnicodeEncodeError) — copy to a safe temp name first. (D49 extended: fal AND Gemini uploads.)"""
+    if Path(path).name.isascii():
+        return path
+    tmp = tempfile.NamedTemporaryFile(suffix=Path(path).suffix or ".bin", delete=False)
+    tmp.close()
+    shutil.copyfile(path, tmp.name)
+    return tmp.name
 
 
 def call_gemini_multimodal(model: str, system: str, user_text: str,
@@ -32,7 +45,7 @@ def call_gemini_multimodal(model: str, system: str, user_text: str,
         mime = mimetypes.guess_type(p)[0] or "image/jpeg"
         contents.append(types.Part.from_bytes(data=Path(p).read_bytes(), mime_type=mime))
     for p in video_paths:
-        f = client.files.upload(file=p)
+        f = client.files.upload(file=ascii_safe_path(p))   # non-ASCII filenames crash the upload header (D49)
         while getattr(f.state, "name", None) != "ACTIVE":
             time.sleep(2); f = client.files.get(name=f.name)
         contents.append(f)
@@ -68,7 +81,7 @@ def call_gemini_video_judge(model: str, system: str, video_path: str, user_text:
     from google import genai
     from google.genai import types
     client = genai.Client(api_key=config.GEMINI_API_KEY)
-    f = client.files.upload(file=video_path)
+    f = client.files.upload(file=ascii_safe_path(video_path))   # non-ASCII filenames crash the header (D49)
     while getattr(f.state, "name", None) != "ACTIVE":
         time.sleep(2); f = client.files.get(name=f.name)
     contents: list[Any] = [f]

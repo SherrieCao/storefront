@@ -112,8 +112,9 @@ def _input_parts(client, types, image_paths, video_paths, user_text):
     for p in image_paths:
         mime = mimetypes.guess_type(p)[0] or "image/jpeg"
         parts.append(types.Part.from_bytes(data=Path(p).read_bytes(), mime_type=mime))
+    from ..llm import ascii_safe_path
     for p in video_paths:
-        f = client.files.upload(file=p)
+        f = client.files.upload(file=ascii_safe_path(p))   # non-ASCII filenames crash the upload header (D49)
         while getattr(f.state, "name", None) != "ACTIVE":
             time.sleep(2); f = client.files.get(name=f.name)
         parts.append(types.Part.from_uri(file_uri=f.uri, mime_type=f.mime_type))
