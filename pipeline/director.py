@@ -27,7 +27,9 @@ SEGMENT_TYPES = {"seedance_shot", "real_clip", "moodboard", "card"}
 
 
 def run_director(run: Run, inventory: dict[str, Any], concept: dict[str, Any] | None = None,
-                 *, use_cache: bool = False) -> dict[str, Any]:
+                 *, use_cache: bool = False, feedback: str | None = None) -> dict[str, Any]:
+    """`feedback` (D51): seed the self-correct loop's first attempt — the editor's voice-fit escalation
+    passes 'video too short for the voice; add beats / cut the script' so the re-plan addresses it."""
     cache = run.dir / BRIEF_FILE
     if use_cache and cache.exists():
         run.log("Director: loaded from cache"); return json.loads(cache.read_text())
@@ -68,7 +70,7 @@ def run_director(run: Run, inventory: dict[str, Any], concept: dict[str, Any] | 
 
     # self-correcting critic loop: produce -> review (4 lenses) + deterministic guards -> regenerate.
     # Keep the BEST attempt (a passing one if any, else the highest-scoring) — not just the last.
-    fb, brief, thinking, verdict, attempts, cands = None, None, None, {}, [], []
+    fb, brief, thinking, verdict, attempts, cands = feedback, None, None, {}, [], []
     for attempt in range(1, config.MAX_CREATIVE_RETRIES + 1):
         brief, thinking = _produce(fb)
         if brief is None:                       # invalid/empty brief — treat as a fail, regenerate
@@ -179,7 +181,7 @@ def _pacing_feedback(run: Run, brief: dict[str, Any], inventory: dict[str, Any])
             f"SHORTER segments — do NOT pad the existing ones.")
 
 
-_SPOKEN_WPS = 2.4   # ~spoken words/second for the VO duration estimate
+_SPOKEN_WPS = config.SPOKEN_WPS   # ~spoken words/second for the VO duration estimate (shared, D51)
 
 
 def _voice_coverage_feedback(run: Run, brief: dict[str, Any]) -> str | None:
@@ -225,7 +227,7 @@ def _voice_length_feedback(run: Run, brief: dict[str, Any]) -> str | None:
     ratio = est_vo / region
     run.log(f"Director: voice-length check — {words} words ≈ {est_vo:.1f}s VO vs ~{region:.1f}s region "
             f"(beats sum {vid:.1f}s) = {ratio:.2f}×")
-    if ratio <= 1.2:
+    if ratio <= config.VOICE_FIT_RATIO:
         return None
     target_words = int(region * 1.1 * _SPOKEN_WPS)
     return (f"SCRIPT TOO LONG — THE VOICE WILL BE CRUSHED: ~{words} words (~{est_vo:.0f}s spoken) over a "

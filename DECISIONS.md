@@ -648,3 +648,24 @@ regen feedback: cut the script AND/OR add/lengthen beats so the video fills 25�
 must sum to ~total_duration_s). Catches both the crush and the short-video-fill in one guard. Unit-tested
 (fires 67w/20s, quiet 36w/20s); director-v1.19. The 0032 video itself was hand-fixed (coherent ~36-word
 script, voice now plays at natural speed) + re-rendered.
+
+## D51 (SHIPPED — voice never crushed past 1.2×: editor detects + escalates)
+Run 0032 crushed the voice to the 1.55× atempo cap (chipmunky) by cramming a long script onto a short
+video — silently. Operator: the voice must NEVER exceed 1.2×; instead the editor detects a too-short
+video and ESCALATES. Built a closed loop:
+- `VOICE_MAX_ATEMPO 1.55→1.2` (hard cap). `render()` no longer silently stretches a beat — at the cap it
+  absorbs only ≤1s and writes a `voice_fit` creative flag + `[VOICE CRUSH]` log (covers replay paths too).
+- `editor._voice_fit_report` attaches `timeline["_voice_fit"]` (est_vo vs the REALIZED region — the gap
+  D50's plan-time guard can't see, since `_fit_to_total` clamps clips shorter than planned).
+- `run.py` bounded loop (`EDITOR_MAX_ESCALATIONS=2`): if the voice doesn't fit at ≤1.2× (estimate OR
+  actual), re-run the Director with feedback ("video Xs too short — add beats from your N unused assets
+  or cut the script to ~W words"); the Director (which owns beat decisions) re-plans → back-half re-runs.
+  If genuinely asset-starved (unused < 1), one-shot `keyframes.generate_synthetic_asset` adds fill frames
+  the Director can use. After the bound, ship at the 1.2× cap + flag. Replay-safe (no-op when cached);
+  cost-ceiling-safe.
+- Shared `config.VOICE_FIT_RATIO` + `config.SPOKEN_WPS` across D50 + the loop (one source of truth).
+- `run_director` gained a `feedback` kwarg (seeds the first attempt). D50 stays as cheap plan-time
+  prevention; this is the realized-level backstop.
+Validated offline (run 0033, stub voice ×1.5): loop fired ×2, capped at 1.2×, flagged, completed. The
+asset-gen branch is the rare last resort (unexercised in the test; import-validated). Real-run tuning
+(does the Director resolve the loop; firing frequency) is the next operator check.

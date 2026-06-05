@@ -135,7 +135,16 @@ ENDING_CARD_S           = 3.0        # the closing brand card holds exactly this
 EDITOR_TARGET_BEAT_S    = 1.5        # target hold per beat (2.0->1.5, E2) — punchy social cadence
 PACING_MAX_AVG_BEAT_S   = 2.2        # Director pacing guard: avg beat above this = too slow -> regen (E2)
 VIDEO_PLAYBACK_RATE     = 1.25       # speed-ramp seedance/real clips for snap (Remotion playbackRate)
-VOICE_MAX_ATEMPO        = 1.55       # max pitch-preserving voice speed-up the editor applies (ffmpeg atempo)
+VOICE_MAX_ATEMPO        = 1.2        # HARD cap: voice never sped >1.2× (was 1.55 = chipmunky). D51.
+# Voice-fit escalation (D51): if the realized video is too short for the script (>1.2×), the editor
+# escalates to the Director to re-plan (add beats / cut script), bounded; then one-shot asset-gen if
+# genuinely asset-starved; then ship at the cap + a flag. Shared by D50's plan-time guard + the loop.
+VOICE_FIT_RATIO         = 1.2        # voice/region must be ≤ this; one source of truth (D50 + the loop)
+SPOKEN_WPS              = 2.4        # estimate: spoken words/sec (promoted from director._SPOKEN_WPS)
+EDITOR_MAX_ESCALATIONS  = 2          # bounded re-plan rounds (each ≈ one back-half re-run — keep small)
+ASSET_GEN_MAX_NEW_BEATS = 2          # cap on synthesized extra beats when asset-starved (cost guard)
+ASSET_STARVED_UNUSED_THRESHOLD = 1   # "out of assets" when unused usable assets < this
+VOICE_STUB_DURATION_MULT = 1.0       # TEST SEAM: offline stub voice length × this (>1.2 reproduces a crush)
 
 # ---------------------------------------------------------------------------
 # Editor render service (Remotion — VERIFIED 4.0.468, docs/editor_findings.md)

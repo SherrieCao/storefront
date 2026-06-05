@@ -131,12 +131,13 @@ def run_voice(run: Run, brief: dict[str, Any], timeline: dict[str, Any],
         cache.write_text(json.dumps(result, indent=2)); return result
 
     if not config.FAL_KEY:
-        _silent_mp3(str(mp3), target_s)
+        stub_s = target_s * config.VOICE_STUB_DURATION_MULT  # test seam: >1.2 reproduces a voice crush (D51)
+        _silent_mp3(str(mp3), stub_s)
         clean = _strip_tags(text)                          # stub captions: no audio model to perform tags
-        lines = _even_lines(clean, target_s)
-        words = _even_words(clean, target_s)
-        run.log(f"Voice: STUB silent mp3 ({target_s:.1f}s, {len(lines)} lines)")
-        result = {"audio_path": str(mp3), "duration_ms": int(target_s * 1000),
+        lines = _even_lines(clean, stub_s)
+        words = _even_words(clean, stub_s)
+        run.log(f"Voice: STUB silent mp3 ({stub_s:.1f}s, {len(lines)} lines)")
+        result = {"audio_path": str(mp3), "duration_ms": int(stub_s * 1000),
                   "lines": lines, "words": words}
         cache.write_text(json.dumps(result, indent=2)); return result
 

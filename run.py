@@ -77,19 +77,34 @@ def main() -> int:
             step = "enhance"; enhance_future.result()   # collect before the gate (re-raises a thread error here)
         if not a.no_gate and not cached("director"):
             return _approval_gate(run)
-        # music only needs the brief — run it in the BACKGROUND during keyframes + shots (the slow stages). (D45)
-        with ThreadPoolExecutor(max_workers=1) as bg2:
-            music_future = bg2.submit(music_.run_music, run, brief, use_cache=cached("music"))
-            step = "keyframes"; keyframes = kf_.run_keyframes(run, brief, inventory, use_cache=cached("keyframes"))
-            step = "shots";     shots = shots_.run_shots(run, brief, inventory, keyframes, use_cache=cached("shots"))
-            step = "music";     music = music_future.result()
-        # Visuals-first spine: fix the visual timeline to the Director's length, THEN fit the voice to
-        # it, THEN render. plan_timeline runs whenever voice or editor will run fresh; it snaps cuts to
-        # the music beat grid (music["beats"]).
-        need_timeline = (not cached("voice")) or (not cached("editor"))
-        timeline = (ed_.plan_timeline(run, brief, shots, keyframes, inventory, beats=music.get("beats"))
-                    if need_timeline else {})
-        step = "voice";     voice = voice_.run_voice(run, brief, timeline, inventory, use_cache=cached("voice"))
+        # Visuals-first spine + VOICE-FIT ESCALATION (D51): build the back-half (music ∥ keyframes→shots →
+        # plan_timeline), generate the voice, and if the REALIZED video is too short for the voice (>1.2×),
+        # re-plan via the Director (add beats / cut script), bounded. The voice is never crushed past the cap.
+        esc, asset_gen_used = 0, False
+        while True:
+            # music only needs the brief — run it in the BACKGROUND during keyframes + shots (D45)
+            with ThreadPoolExecutor(max_workers=1) as bg2:
+                music_future = bg2.submit(music_.run_music, run, brief, use_cache=cached("music"))
+                step = "keyframes"; keyframes = kf_.run_keyframes(run, brief, inventory, use_cache=cached("keyframes"))
+                step = "shots";     shots = shots_.run_shots(run, brief, inventory, keyframes, use_cache=cached("shots"))
+                step = "music";     music = music_future.result()
+            need_timeline = (not cached("voice")) or (not cached("editor"))
+            timeline = (ed_.plan_timeline(run, brief, shots, keyframes, inventory, beats=music.get("beats"))
+                        if need_timeline else {})
+            step = "voice";     voice = voice_.run_voice(run, brief, timeline, inventory, use_cache=cached("voice"))
+            # escalate only on a fresh run (no-op on replay from a later step) + bounded + only if underbuilt
+            loop_live = (not cached("director")) and (not cached("voice"))
+            if not loop_live or esc >= config.EDITOR_MAX_ESCALATIONS or _voice_fits(timeline, voice):
+                break
+            esc += 1
+            unused = _unused_usable_assets(inventory, brief)
+            fb = _voicefit_replan_feedback(timeline, voice, len(unused))
+            run.log(f"[VOICE-FIT ESCALATION {esc}] realized video too short for the voice — "
+                    f"re-planning ({len(unused)} unused assets)")
+            if len(unused) < config.ASSET_STARVED_UNUSED_THRESHOLD and not asset_gen_used:
+                asset_gen_used = True                       # last resort, one-shot: synthesize a fill asset
+                _try_asset_gen(run, inventory, brief, timeline)
+            step = "director"; brief = dir_.run_director(run, inventory, concept, feedback=fb)
         step = "editor";    final = ed_.render(run, timeline, voice, music=music, use_cache=cached("editor"))
         _flag_editor(run, timeline)            # surface an unresolved editor review (like creative flags)
         step = "review"
@@ -187,6 +202,64 @@ def _flag_editor(run, timeline) -> None:
     run.write_creative_flags(existing)
     run.log(f"[OPERATOR ACTION] editor review unresolved after retries ({rv.get('failed_lenses')}) "
             f"— accepted best; see creative_flags.json")
+
+
+# --- D51: voice-fit escalation helpers ---------------------------------------------------------
+def _voice_fits(timeline: dict, voice: dict) -> bool:
+    """True if the script fits the realized video at ≤ VOICE_FIT_RATIO. Checks BOTH the editor's estimate
+    (timeline._voice_fit.underbuilt) and the ACTUAL voice duration (the authority once voice exists)."""
+    fit = (timeline or {}).get("_voice_fit") or {}
+    if fit.get("underbuilt"):
+        return False
+    region = fit.get("vo_region") or 0.0
+    vdur = (voice.get("duration_ms") or 0) / 1000
+    if region and vdur:
+        return (vdur / region) <= config.VOICE_FIT_RATIO + 0.05
+    return True                                            # no data (cached/empty timeline) → don't loop
+
+
+def _unused_usable_assets(inventory: dict, brief: dict) -> list:
+    """Usable @-token assets the Director did NOT reference in any beat — the material a re-plan can add."""
+    from pipeline.translator import _usable_assets
+    used: set = set()
+    for s in brief.get("segments", []):
+        used.update(str(x) for x in (s.get("moodboard_assets") or []))
+        if s.get("asset_ref"): used.add(str(s["asset_ref"]))
+        if s.get("clip_ref"):  used.add(str(s["clip_ref"]))
+    return [(t, p) for t, p in _usable_assets(inventory) if t not in used]
+
+
+def _voicefit_replan_feedback(timeline: dict, voice: dict, n_unused: int) -> str:
+    fit = (timeline or {}).get("_voice_fit") or {}
+    region = fit.get("vo_region") or 0.0
+    vdur = (voice.get("duration_ms") or 0) / 1000 or fit.get("est_vo") or 0.0
+    target_words = int(region * config.VOICE_FIT_RATIO * config.SPOKEN_WPS)
+    short = max(0.0, vdur / config.VOICE_FIT_RATIO - region)
+    return (f"VIDEO TOO SHORT FOR THE VOICE: the realized video's spoken region is ~{region:.0f}s but the "
+            f"voice is ~{vdur:.0f}s — it would be sped past {config.VOICE_FIT_RATIO}× (rushed). The video is "
+            f"~{short:.0f}s too short. Fix BOTH ways toward a match: ADD beats (you have {n_unused} unused "
+            f"assets — turn them into distinct short real_clip/moodboard beats) so the video fills "
+            f"{config.MIN_DURATION_S}–{config.MAX_DURATION_S}s, AND/OR cut the script to ~{target_words} words. "
+            f"Your beat durations must SUM to about total_duration_s — short trimmed clips clamp the realized "
+            f"video shorter than planned, which is the usual cause.")
+
+
+def _try_asset_gen(run, inventory: dict, brief: dict, timeline: dict) -> bool:
+    """Last resort (one-shot): synthesize fill frames so the Director can add beats when genuinely out of
+    distinct assets. Registers them as recoverable @Image assets. Bounded by ASSET_GEN_MAX_NEW_BEATS."""
+    import math
+    short = ((timeline or {}).get("_voice_fit") or {}).get("shortfall_s") or 0.0
+    n = min(config.ASSET_GEN_MAX_NEW_BEATS, max(1, math.ceil(short / config.EDITOR_TARGET_BEAT_S)))
+    base, added = len(inventory.get("images", [])), 0
+    for i in range(n):
+        p = kf_.generate_synthetic_asset(run, brief, base + i)
+        if p:
+            inventory.setdefault("images", []).append(
+                {"path": p, "recoverable": True, "type": "image", "note": "synthesized (D51)", "_synthetic": True})
+            added += 1
+    if added:
+        run.log(f"Asset-gen: registered {added} synthetic asset(s) for the Director to use (last resort)")
+    return added > 0
 
 
 def _meta(d: Path, k: str):

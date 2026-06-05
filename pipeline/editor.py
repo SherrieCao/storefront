@@ -95,15 +95,43 @@ def plan_timeline(run: Run, brief: dict[str, Any], shots_result: dict[str, Any],
     _snap_to_beats(run, segs, beats)                        # nudge cuts onto the music beat grid (D3)
     total_s = _assign_timestamps(segs)                      # cumulative start/end (crossfade-aware)
 
+    fit = _voice_fit_report(brief, segs, total_s)               # D51: will the script fit the REALIZED video?
     timeline = {"fps": config.FPS, "width": 1080, "height": 1920,
                 "segments": segs, "sources": sources, "total_s": round(total_s, 2),
                 "palette": inventory.get("palette", []), "reasoning": agent.get("reasoning", ""),
-                "caption_style": agent.get("caption_style", "bold_center"),
+                "caption_style": agent.get("caption_style", "bold_center"), "_voice_fit": fit,
                 "_review": {"passed": verdict.get("pass", True), "scores": verdict.get("scores", {}),
                             "failed_lenses": verdict.get("failed_lenses", []), "attempts": attempts}}
     run.log(f"Editor: timeline {total_s:.1f}s — "
             + ", ".join(f"{s['type']}:{s['duration_s']:.1f}s" for s in segs))
+    if fit["underbuilt"]:
+        run.log(f"Editor: voice-fit — ~{fit['est_vo']:.0f}s script over a ~{fit['vo_region']:.0f}s region "
+                f"= {fit['est_ratio']:.2f}× (> {config.VOICE_FIT_RATIO}×) — UNDERBUILT, ~{fit['shortfall_s']:.0f}s short")
     return timeline
+
+
+def _voice_fit_report(brief: dict, segs: list[dict], total_s: float) -> dict:
+    """How the script will fit the REALIZED video (D51). The editor fits the voice to the region BEFORE the
+    ending card; a script too long for that region (> VOICE_FIT_RATIO) gets crushed. Estimate-based (no
+    TTS) so the orchestration loop can use it pre-voice; render() applies the actual-voice 1.2× cap as the
+    final net. Keys off the REALIZED durations (post fit/snap) — the gap D50's plan-time guard can't see."""
+    last = segs[-1] if segs else {}
+    card_s = float(last.get("duration_s") or 0.0) if last.get("type") == "card" else 0.0
+    region = max(1.0, total_s - card_s)
+    words = len((brief.get("speech") or brief.get("script") or "").split())
+    est_vo = words / config.SPOKEN_WPS
+    ratio = est_vo / region
+    return {"vo_region": round(region, 2), "est_vo": round(est_vo, 2), "words": words,
+            "est_ratio": round(ratio, 3),
+            "shortfall_s": round(max(0.0, est_vo / config.VOICE_FIT_RATIO - region), 2),
+            "underbuilt": ratio > config.VOICE_FIT_RATIO}
+
+
+def _flag(run: Run, entry: dict) -> None:
+    """Append a creative/operator flag (never silent). Mirrors run._flag_editor's merge pattern."""
+    existing = json.loads(run.creative_flags_path.read_text()) if run.creative_flags_path.exists() else []
+    existing.append(entry)
+    run.write_creative_flags(existing)
 
 
 def render(run: Run, timeline: dict[str, Any], voice: dict[str, Any], *,
@@ -153,14 +181,20 @@ def render(run: Run, timeline: dict[str, Any], voice: dict[str, Any], *,
             run.log(f"Editor: voice {voice_dur:.1f}s atempo×{tempo} -> {voice_dur/tempo:.1f}s "
                     f"(fit before the {ending_card_s:.0f}s card; vo region {vo_region:.1f}s of {video_len:.1f}s)")
             vstaged = str(fitted)
-            # if capped (voice still longer than the VO region), push the spill into the lead-IN beat
-            # before the card so the card itself stays clean.
+            # D51: at the 1.2× cap the voice STILL doesn't fit → the video is genuinely too short for the
+            # script (the orchestration loop should have escalated; this is the terminal net + replay paths).
+            # Absorb only a SMALL spill (≤1s) into a pre-card beat so the card stays clean, then FLAG — never
+            # silently crush or stretch a beat for many seconds.
             fitted_dur = voice_dur / tempo
             if fitted_dur > vo_region + 0.3:
                 ext = next((s for s in reversed(segs[:-1]) if s["type"] in ("card", "moodboard")), segs[-2] if len(segs) > 1 else segs[-1])
-                ext["duration_s"] = round(ext["duration_s"] + (fitted_dur - vo_region), 2)
-                run.log(f"Editor: voice still {fitted_dur:.1f}s at atempo cap — extended pre-card "
-                        f"{ext['type']} so the ending card stays clean.")
+                ext["duration_s"] = round(ext["duration_s"] + min(fitted_dur - vo_region, 1.0), 2)
+                ratio = round(voice_dur / vo_region, 2)
+                run.log(f"[VOICE CRUSH] voice {voice_dur:.1f}s in a {vo_region:.1f}s region = {ratio}× "
+                        f"(capped at {config.VOICE_MAX_ATEMPO}×) — video too short for the script; flagged.")
+                _flag(run, {"stage": "voice_fit", "ratio": ratio, "region_s": round(vo_region, 1),
+                            "voice_s": round(voice_dur, 1),
+                            "note": f"voice exceeds {config.VOICE_MAX_ATEMPO}× at the cap — video too short for the script"})
         else:
             vstaged = vpath
         # Light dynamic-range compression evens out the VO and kills the "digital stiffness" of synthetic

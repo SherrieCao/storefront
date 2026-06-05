@@ -138,6 +138,27 @@ def _fal_upload(path: str) -> str:
     return fal_client.upload_file(ascii_safe_path(path))
 
 
+def generate_synthetic_asset(run: Run, brief: dict[str, Any], idx: int) -> str | None:
+    """D51 LAST RESORT: when the business is genuinely out of distinct assets to fill the video for the
+    voice, synthesize ONE new text-to-image frame (Nano Banana, no real photo) from the brief's
+    angle/mood, so the Director can add a beat. Returns the saved path (caller registers it in inventory)
+    or None on failure. Capped + one-shot by the caller. Offline (no FAL_KEY) → a stub frame."""
+    out_dir = run.dir / "asset_gen"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    dst = out_dir / f"synth_{idx}.png"
+    angle = str(brief.get("creative_angle") or brief.get("mood") or "")[:140]
+    prompt = (f"A clean, candid still frame for a short ad about: {angle}. " + _STYLE_SUFFIX)
+    seed = (int(run.run_id) if str(run.run_id).isdigit() else 7) + 7919 + idx
+    try:
+        _make_keyframe(run, "generate", prompt, [], str(dst), seed)
+        if Path(dst).exists():
+            run.log(f"Asset-gen: synthesized {dst.name} (text-to-image, no real photo) — last-resort fill")
+            return str(dst)
+    except Exception as e:
+        run.log(f"Asset-gen: failed ({str(e)[:60]})")
+    return None
+
+
 def _make_keyframe(run: Run, mode: str, prompt: str, image_urls: list[str], dst: str, seed: int) -> None:
     if not config.FAL_KEY:
         _stub_keyframe(mode, image_urls, dst)
