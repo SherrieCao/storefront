@@ -2,7 +2,7 @@
 
 ## What this project is
 A pipeline that turns a local small business's raw assets (a handful of mediocre phone photos,
-maybe a short video, maybe no logo, a one-line description) into ONE finished 15-second vertical
+maybe a short video, maybe no logo, a one-line description) into ONE finished 25–30s vertical
 video ad. Target customers: local service AND product businesses — hair salon, nails, dog daycare,
 cleaning, bakery, restaurant, florist.
 

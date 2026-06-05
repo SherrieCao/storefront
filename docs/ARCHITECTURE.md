@@ -1,86 +1,116 @@
 # Architecture — Multi-Generation Pipeline
 
+> Current through **DECISIONS D51**. `DECISIONS.md` is the running source of truth; this file is the
+> snapshot. Target ad length **25–30s**.
+
 ## The pipeline
 ```
 triage → concept → director → enhance → keyframes → shots → music → voice → editor → review
 ```
-- **triage** — local CV. Per-asset salvage/remediation plan; before/after gate (text-only); gap-ask.
-- **concept** — Gemini multimodal. Diverge, reject clichés, anchor on a real review detail, self-select
-  one bold feasible concept.
-- **director** — Gemini multimodal, on the agent loop. EXECUTES the concept into a sequence of MIXED
-  SEGMENTS (`seedance_shot` / `real_clip` / `moodboard` / `card`), total length 15–30s, script,
-  `pacing`/`editing_feel` (feed the Editor), and a mandatory hook. Plans creatively; never sees cost.
+- **triage** — local CV, no LLM. Per-asset salvage/remediation plan; before/after gate (operator brief
+  text OR `before_`/`after_` filename prefixes — never pixel inference, D11/D37); per-asset `role`
+  tagging; gap-ask. Frozen `input_snapshot/`.
+- **concept** — Gemini multimodal. Diverge, name + reject clichés, anchor on a real Google-review detail
+  (cached per business), self-select one bold, feasible, **appealing** concept (the appeal gate, D41).
+- **director** — Gemini multimodal, on the agent loop. EXECUTES the concept into MIXED SEGMENTS
+  (`seedance_shot` / `real_clip` / `moodboard` / `card`), **25–30s**, the spoken script (may carry ≤1
+  performed-emotion audio tag, D48), `pacing`/`editing_feel`, and a mandatory hook. Plans creatively;
+  never sees cost. **Deterministic guards run inside its self-correct loop** (prose doesn't bind; code
+  does): pacing, moodboard reuse, clip reuse, voice coverage, **voice length** (script must fit the video
+  ≤1.2×, D50), perspective (asset-grounded, deprioritize 1st-person), **before/after adjacency** (a
+  before beat must be immediately followed by its after, D43). Accept-best across bounded retries.
 - **enhance** — local Pillow relight + fal upscale on recoverable photos (feeds keyframes/moodboard).
-- **keyframes** — Nano Banana 2. seedance_shot start frames (generate / generate_from_real) + moodboard
-  composition frames. Holds visual coherence; forbids on-screen text.
-- **shots** — Shot Agent. Per `seedance_shot`: compose single-shot prompt → Seedance image-to-video
-  (silent) → Gemini Flash judges the clip → approve or retry ≤3 with judge feedback → flag after 3.
-  Runs shots concurrently (Seedance is ~2 min/gen).
-- **music** — one CassetteAI call (fal): an instrumental-only mood bed ≈ the ad length → librosa beat
-  grid `{music_path, bpm, beats[]}`. Runs after shots so the editor can snap cuts to the grid. Stubs
-  offline (no key → no music, empty beats → editor unaffected). Budget-gated; never raises. (D25)
-- **voice** — one ElevenLabs TTS call (fal). Clean voiceover + word-level timestamps (kinetic captions).
+- **keyframes** — Nano Banana 2, **concurrent**. seedance_shot start frames (generate / generate_from_real)
+  + moodboard composition frames. Holds cross-shot visual coherence; forbids on-screen text. **De-AI
+  Layer 1 (D47):** phone-camera-realism prompt (mixed light, deep DoF, blown highlights, *not* polished;
+  color kept true, not muted); `generate_from_real` PRESERVES the real photo (doesn't "polish" it); a
+  `before`-role beat is shown as the PLAIN raw photo (`preserve_before`, no composition).
+- **shots** — Shot Agent, **concurrent** (Seedance ~2 min/gen). Per `seedance_shot`: compose single-shot
+  prompt → Seedance image-to-video (silent) → Gemini Flash judges the clip → approve or retry ≤3 with
+  judge feedback → flag after 3 (never silent). **De-AI Layer 2 (D47):** each approved clip gets one
+  ffmpeg pass — temporal grain + vignette + softness + handheld micro-jitter (color untouched, so vivid
+  results stay vivid); the raw clip is kept for A/B.
+- **music** — a **curated royalty-free LIBRARY pick** matched to pacing/energy (D26) + a librosa beat grid
+  `{music_path, bpm, beats[]}`. Not generation ($0). Runs ∥ keyframes/shots so the editor can snap cuts.
+  Stubs offline.
+- **voice** — one ElevenLabs **v3** call (fal): voiceover + word-level timestamps (drive kinetic captions).
+  **Business-aware voice routing** (`_select_voice`, gender > region > vertical) picks one of 8 voices +
+  a per-voice stability. Performed-emotion audio tags (`[excited]`/`[laughs softly]`, ≤1, whitelisted,
+  stripped from captions; body-sounds banned — D48).
 - **editor** — Editor Agent emits an EDIT PLAN (order / durations / transitions / motion / overlays /
-  caption style / card animation), **critiqued by an editing reviewer loop** (`plan_timeline⟳`:
-  first-0.5s grab / rhythm / contrast / payoff / motion-graphics); Remotion (`editor_render/`) renders
-  the plan → final mp4. Assembles all four segment types with **kinetic word-by-word captions**
-  (clean_pop / emphasis / karaoke) + **animated cards**, **beat-snapped cuts** + a **ducked music bed**,
-  transitions {hard_cut, crossfade, dip_to_black, slide, whip, zoom}, video **motion** (punch_in /
-  parallax), and **overlays** (lower-thirds / badges). Bright line D21: all visuals are Remotion; the
-  only generated audio is the music bed. See DECISIONS D24/D25.
-- **review** — mechanical checks only on the FINAL video (playable, duration, not black). Per-shot
-  quality already judged in `shots`; creative judgment is the operator's (06_operator_review.json).
+  caption style / card animation). **The editing-reviewer critic loop is DISABLED (D42, single-pass)** —
+  the latency wasn't worth it; deterministic realizers do the guaranteeing instead: `_realize_before_after`
+  (BEFORE/AFTER **bold kinetic stamp** + whip reveal, D43/D48), `_realize_ending` (always a designed
+  branded info card from `brief.json`, D38), `_fit_to_total`, `_snap_to_beats`. **Remotion** renders the
+  plan → mp4: kinetic word-by-word captions (`bold_center` / `minimal_lower` / `handwritten` /
+  `sparse_keyword`), animated cards, beat-snapped cuts, a ducked music bed, transitions {hard_cut,
+  crossfade, dip_to_black, slide, whip, zoom, speed_ramp_in, scale_reveal, light_leak}, video motion
+  {punch_in, parallax, drift, scale_breath, handheld_jitter}, overlays {lower_third, badge, stamp}.
+  The voiceover is atempo-fit to the video, **hard-capped at 1.2×** (D51 — never crushed). Overlay text
+  with fabricated contact (a handle/URL/phone not in `brief.json`) is dropped (D44).
+- **review** — mechanical checks only on the FINAL video (playable, duration, not black). Per-shot quality
+  already judged in `shots`; creative judgment is the operator's (`06_operator_review.json`).
 
-## THE ARCHITECTURAL REVERSAL — single-call → multi-gen (read before re-litigating)
-This repo reverses the previous single-call decision. **Both decisions were correct in context.**
+## Concurrency + thread safety (DECISIONS D45)
+Stages that don't depend on each other run in parallel: **enhance ∥ concept+director**, **music ∥
+keyframes+shots**, and keyframes/shots fan out internally. The `Run` object is thread-safe (a single
+`RLock` guards `trace`/`log`/`reason`/`add_cost`/`cost_total`) so parallel stages can't interleave
+`trace.jsonl` or lose a cost update (which could slip the ceiling).
 
-**Why single-call was right then.** The old pipeline (`_reference/old_pipeline/`) generated the whole
-15s ad in ONE Seedance 2.0 multi-shot reference-to-video call — visuals, cuts, ambient, and native
-voiceover in a single pass. It was simpler, faster to ship, had no timing/assembly handoff, and got us
-to a working end-to-end system. At the time, "the Seedance prompt IS the product" was the right focus.
-
-**Why multi-gen is right now.** Real testing exposed two hard ceilings:
-1. **Failure rate** — a full 15s single generation fails too often (artifacts, warping, drift), with
-   no way to salvage one bad beat without re-rolling the whole ad.
-2. **Polish ceiling** — you cannot prompt your way to clean transitions, burned-in captions, editing
-   rhythm, or a non-robotic voice. The native voice sounds robotic; there is no real edit control.
-
-So we moved to: one Seedance call PER SHOT (each judged + retried + flagged), Nano Banana keyframes for
-cross-shot consistency, a dedicated TTS voice, and a real Remotion editor that assembles everything.
-This costs more and adds latency and a real assembly stage — all worth it because the previous
-architecture had a quality ceiling we had hit. (See `WHY.md`, `DECISIONS.md` D1.)
-
-**Spec correction (recorded so it isn't re-introduced):** the main spec's migration section says to
-keep the old single-call path behind a `SINGLE_CALL_MODE` feature flag. We did NOT do this — per
-operator decision, the new repo does not port single-call code (D18 forbids importing old code, and a
-half-ported flag is exactly the entangled middle ground we're avoiding). The fallback, if ever needed,
-is to run the old `_reference/old_pipeline/` pipeline directly. There is no `SINGLE_CALL_MODE`.
+## Voice-fit escalation — the voice is never crushed (DECISIONS D50/D51)
+The voice paces from the script; if the realized video is too short to fit it at ≤1.2×, the editor does
+NOT silently speed it up. It **escalates**: re-plan via the Director (add beats from unused assets / cut
+the script — bounded, `EDITOR_MAX_ESCALATIONS`), then a one-shot synthetic asset-gen if genuinely
+asset-starved, then ship at the 1.2× cap + a `voice_fit` flag. D50 is the cheap plan-time guard (script
+vs *planned* beats); D51 is the realized-level backstop (what `_fit_to_total`'s clip clamps shrink below
+plan). One shared `VOICE_FIT_RATIO` (1.2) + `SPOKEN_WPS`.
 
 ## The recurring split (the quality lever — DECISIONS D2)
 Judgment and execution live in different minds:
 concept (judgment) → director (executes concept) → per-shot composer / Shot Agent (per-shot craft) ;
 director's `pacing`/`editing_feel` (intent) → Editor Agent (edit plan) → Remotion (deterministic render).
+The editor escalates a too-short video back to the Director rather than inventing beats — beat authorship
+stays with the Director.
 
 ## The Seedance/Remotion bright line (DECISIONS D21)
-Seedance generates ONLY new footage (`seedance_shot`). Remotion does EVERYTHING else — moodboard
-composition+motion, real-clip trimming, cards, transitions, captions, audio mux. No fuzzy middle.
+Seedance generates ONLY new footage (`seedance_shot`, always anchored to a real photo). Remotion does
+EVERYTHING else — moodboard composition+motion, real-clip trimming, cards, transitions, captions, audio
+mux. The only generated audio is none of the spine — voice is TTS, music is a library file.
 
 ## Cost ceiling (DECISIONS D6/D19)
 $5 hard ceiling per run as a SILENT safety net: `tracing.Run.cost_total()` + `budget.check_ceiling()`
-before every paid call. If a paid call would breach it, the run halts and finalizes a clean partial
-(meta status `halted_cost_ceiling`, `COST.md`). The Director never reasons about cost.
+before every paid call (now thread-safe). A breach halts + finalizes a clean partial
+(`halted_cost_ceiling`, `COST.md`). The Director never reasons about cost. Typical full run ~$1.3–$4 (0
+seedance is cheapest; each seedance shot + retries is the main cost).
 
-## Models (behind MODEL_ROUTER — all VERIFIED LIVE, see docs/*_findings.md)
-- Concept + Director: `gemini-3.1-pro-preview` (multimodal)
-- Per-shot composer + Editor Agent: `claude-sonnet-4-6`
+## Robustness notes
+- **Non-ASCII filenames (D49/D49b):** SMB phones produce emoji/accented filenames; `llm.ascii_safe_path`
+  copies to an ASCII temp before any fal **or** Gemini upload (the filename rides an HTTP header).
+- **External calls** (fal/Gemini) lack per-call retry/timeout — a transient blip can fail a run; replay
+  from the failed step. (Open hardening item.)
+
+## The architectural reversal — single-call → multi-gen (read before re-litigating)
+The old pipeline (`_reference/old_pipeline/`) generated the whole ad in ONE Seedance multi-shot call —
+simpler, faster to ship, no assembly handoff. Real testing exposed two ceilings: (1) a full single
+generation fails too often with no way to salvage one bad beat, and (2) you can't prompt your way to
+clean transitions/captions/editing-rhythm/non-robotic voice. So we moved to one Seedance call PER SHOT
+(judged + retried + flagged), Nano Banana keyframes for consistency, dedicated TTS voice, and a real
+Remotion editor. Both decisions were correct in context (DECISIONS D1). No `SINGLE_CALL_MODE` flag — the
+old path is not ported (D18); the fallback is to run `_reference/old_pipeline/` directly.
+
+## Models (behind `MODEL_ROUTER`)
+- Concept + Director: `gemini-3.1-pro-preview` (multimodal; Director runs the agent loop at thinking_level "high")
+- Per-shot composer + Editor Agent + reviewers: `claude-sonnet-4-6`
 - Shot judge: `gemini-3-flash-preview` (cheap, accepts video)
 - Keyframes: `fal-ai/nano-banana-2` (+ `/edit`)
 - Shots: `bytedance/seedance-2.0/image-to-video` (audio off), text-to-video fallback
-- Voice: `fal-ai/minimax/speech-02-hd`
-- Editor render: Remotion 4.0.468 (local CLI; Lambda is the documented upgrade path)
+- Voice: `fal-ai/elevenlabs/tts/eleven-v3` (word timestamps; supersedes MiniMax)
+- Music: curated royalty-free library (no model) + librosa
+- Editor render: Remotion (local CLI; `editor_render/`)
 
 ## Observability (DECISIONS D16)
 Every run dir: numbered artifacts per stage, `trace.jsonl` (full prompt/response/thinking/cost),
 `REASONING.md` (per-stage narrative incl. Shot Agent attempts + Editor rationale), `lineage.json`
 (concept→plan→keyframes→shots→voice→edit→output→verdict), `COST.md` (per-stage vs ceiling),
-`flagged_shots.json`. Replay: `python run.py --replay NNNN --from-step <stage>`.
+`flagged_shots.json`, `creative_flags.json` (unresolved reviews / voice-fit). Replay:
+`python run.py --replay NNNN --from-step <stage>` (cached upstream artifacts reused).

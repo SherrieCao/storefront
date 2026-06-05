@@ -85,11 +85,13 @@ between them:
 - **keyframes** — a *consistent set* of per-shot start frames that hold visual coherence.
 - **shots** — generate each shot silently, then **a separate model judges the rendered clip as video** →
   approve, or retry up to 3× with the judge's notes baked in → flag after 3 fails. **Never silently
-  ships a least-bad shot.**
+  ships a least-bad shot.** Each approved clip gets a **de-AI pass** (phone-camera-realistic keyframes +
+  ffmpeg grain/vignette/jitter, color untouched) so generated shots read phone-captured, not glossy-AI.
 - **music / voice** — a beat-matched royalty-free bed; one TTS take with word-level timestamps that drive
-  caption sync. The voice is routed to fit the business (region / vertical / audience).
+  caption sync. The voice is **routed to fit the business** (gender / region / vertical), and is **never
+  sped up past 1.2×** — if the video is too short for the script, the editor escalates instead of crushing.
 - **editor** — an Editor Agent emits a structured JSON edit plan; **Remotion** renders it deterministically
-  (designed cards, kinetic captions, motion, before→after reveals).
+  (designed cards, kinetic captions, motion, before→after reveals with a bold BEFORE/AFTER stamp).
 - **review** — frames + mechanical checks on the finished video; the final creative call is the operator's.
 
 ### The core bet: split judgment from execution
@@ -108,10 +110,14 @@ output; the split is the quality lever.
 ### Why you can trust the output
 
 - **Grounded, never fabricated** — real review detail, real-photo-anchored motion, no invented
-  contact/claims, before/after only when the operator states it.
+  contact/claims (fabricated handles/URLs are stripped), before/after only when the operator states it.
 - **A separate-mind quality judge per shot** — generate → judge → retry → flag; nothing fails silently.
 - **Deterministic guards that bind in code** (pacing, asset reuse, voice coverage, asset-grounded
-  perspective) — because prose in a prompt doesn't reliably hold.
+  perspective, before/after adjacency, **script-fits-the-video**) — because prose in a prompt doesn't
+  reliably hold. When a guard can't be satisfied in-plan, the editor **escalates back to the Director**
+  rather than shipping a compromise.
+- **Phone-captured, not glossy-AI** — the de-AI pass shifts generated footage toward real phone aesthetics
+  (practical light, grain, micro-jitter) so it blends with the real clips instead of "popping" as AI.
 - **Authenticity over polish** — a real, specific, slightly imperfect moment beats a glossy generated
   montage, and reads as a *real business* rather than an ad.
 

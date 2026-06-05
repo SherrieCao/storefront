@@ -1,16 +1,25 @@
-# SMB AI Video Pipeline — v0 Build Doc (multi-gen architecture)
+# SMB AI Video Pipeline — multi-gen architecture (project guide)
 
-> This file is read automatically by Claude Code every session. It defines what to build NOW.
-> Read alongside `WHY.md` (project purpose + quality bar) and `DECISIONS.md` (key choices + why).
-> Detailed build instructions are in `docs/Specs/SPEC_multigen_rearchitecture.md`.
+> This file is read automatically by Claude Code every session. **The pipeline is BUILT and iterating** —
+> this doc captures what the system is + how to work on it (not a build-from-scratch plan). For the live
+> state use **`docs/ARCHITECTURE.md`** (current snapshot) and **`DECISIONS.md`** (the running record,
+> D1–D51 — the source of truth). Read alongside `WHY.md` (purpose + quality bar).
 > The previous single-call architecture is preserved in `_reference/old_pipeline/` for reference
 > only — do not modify, do not import from. Reuse PATTERNS, not code.
+
+> **Current capabilities (D42–D51), beyond the original build:** stages run in parallel + the `Run` object
+> is thread-safe (D45); the editor critic loop is disabled / single-pass (D42); before/after is a
+> deliberate adjacent reveal with a bold BEFORE/AFTER stamp + whip (D43); a de-AI pass makes generated
+> shots read phone-captured (keyframe realism + ffmpeg grain/vignette/jitter — color untouched, D47);
+> business-aware voice routing (gender > region > vertical) + optional performed-emotion audio tags (D48);
+> the voiceover is hard-capped at 1.2× and the editor escalates a too-short video back to the Director
+> instead of crushing the audio (D50/D51); ad length is **25–30s**.
 
 ---
 
 ## The one-paragraph "what this is"
 Turn a local small business's messy raw assets (a few mediocre phone photos, maybe a video clip,
-maybe no logo, a one-line brief) into ONE finished 15-second vertical video ad. The pipeline is a
+maybe no logo, a one-line brief) into ONE finished 25–30s vertical video ad. The pipeline is a
 sequence of LLM "thinking" stages that decide what the ad should be, plus a multi-shot generation
 flow that produces and assembles the actual video. Quality bar: "would a small-business owner
 believe this brings them more traffic?" — see `WHY.md`.
@@ -19,8 +28,10 @@ believe this brings them more traffic?" — see `WHY.md`.
 
 ## The pipeline (multi-gen architecture)
 ```
-triage  -> concept -> director -> enhance -> keyframes -> shots -> voice -> editor -> review
+triage -> concept -> director -> enhance -> keyframes -> shots -> music -> voice -> editor -> review
 ```
+(Stages run in parallel where deps allow: enhance ∥ concept+director, music ∥ keyframes+shots; keyframes
+and shots fan out internally. D45.)
 - **triage** — local CV, no LLM. Per-asset salvage plan (upscale/sharpen/relight). Parses
   before/after from the brief. Surfaces the highest-value gap. Handles photos AND videos.
 - **concept** — Gemini, multimodal. Brainstorms freely, names + rejects clichés, self-selects the
@@ -35,8 +46,11 @@ triage  -> concept -> director -> enhance -> keyframes -> shots -> voice -> edit
 - **shots** — Shot Agent. PER SHOT: compose per-shot Seedance prompt -> generate (silent, audio
   off) -> Gemini Flash JUDGES the rendered clip as video -> approve or retry up to 3x with judge
   feedback baked into the next attempt -> flag to operator after 3 failures. NEVER silent accept.
-- **voice** — one fal TTS call. Returns mp3 + line timestamps (drive caption sync + shot timing).
-  Verify endpoint at build.
+  Each approved clip gets a de-AI ffmpeg pass (grain/vignette/jitter, color untouched; D47).
+- **music** — a curated royalty-free LIBRARY pick matched to pacing/energy + a librosa beat grid (the
+  editor snaps cuts to it). Not generation ($0). (D26)
+- **voice** — one ElevenLabs v3 call (fal): voiceover + word-level timestamps (caption sync). Voice is
+  ROUTED by business (gender > region > vertical), with optional ≤1 performed-emotion audio tag (D48).
 - **editor** — Editor Agent emits a structured EDIT PLAN (JSON: video/audio/caption tracks);
   Remotion (separate render service in `editor_render/`) renders the plan to mp4. Phase 1 scope:
   cuts + captions + audio mux + simple transitions. Phase 2 (later): motion graphics, kinetic text,
@@ -109,7 +123,8 @@ are reused. Scaffold iteration = replay from `concept` or `director`. Editor tun
 
 ---
 
-## Pre-build spikes (DO THESE FIRST — before pipeline code)
+## Pre-build spikes  _(HISTORICAL — these were done; the spikes are complete and the findings live in
+## `docs/*_findings.md`. Kept for context. The live model/endpoint list is in `docs/ARCHITECTURE.md`.)_
 These external surfaces must be verified against live docs; do NOT trust training-data recall.
 Write findings into docs files so we don't re-research later:
 
@@ -168,7 +183,8 @@ Director or Concept brain. Use Gemini Pro for understanding/direction; Seedance 
 
 ---
 
-## Build order (incremental, with acceptance checks per stage)
+## Build order  _(HISTORICAL — the build is complete; all stages below shipped. Kept for context;
+## ongoing work is decision-driven, see `DECISIONS.md` D1–D51.)_
 Follow `docs/Specs/SPEC_multigen_rearchitecture.md` step by step. Suggested order:
 0. Pre-build spikes (above). Block on findings.
 1. Repo scaffolding: copy patterns from `_reference/` (tracing, agent loop, errors, run-dir).
