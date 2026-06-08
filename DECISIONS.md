@@ -748,3 +748,16 @@ ends with the new `_STYLE_BASE` instead of `_STYLE_SUFFIX`. `_STYLE_SUFFIX` was 
 `_STYLE_SUFFIX` so Seedance seeds stay text-free — the no-text ban is now opt-in, lifted for moodboards ONLY.
 Supersedes the moodboard no-text tightening (D55). Accepted tradeoff: decorative AI text can render garbled
 or lightly overlap Remotion captions; mitigated by "keep words SMALL and incidental, no caption bars."
+
+## D57 (SHIPPED — revert the moodboard to the original INVENTIVE board)
+Operator call: the fidelity-restricted moodboard (D53/D55/D56) was "too restrictive on only using provided
+images" — they want the model free to GENERATE complementary imagery that fits the board's general mood, not
+locked to the real photos. So `_moodboard_prompt` is reverted to its original wording ("compose the attached
+real photos as cutouts ... art-directed scrapbook/pinboard on a warm textured surface, slightly overlapping,
+editorial layout; keep each real subject's likeness" + full `_STYLE_SUFFIX`). Reverted with it: the `_STYLE_
+SUFFIX` split (back to one string; `_STYLE_BASE`/`_NO_TEXT` removed — shot keyframes unchanged), the D55 tile
+enrichment (`_moodboard_tiles`/`_clip_base` deleted; the moodboard branch passes only the Director's
+`moodboard_assets` again) and `config.MOODBOARD_TILE_TARGET`. **KEPT (not a restriction — a bug fix):** D54's
+enhance black-frame guard, so the real photos still arrive intact (the original "nothing to do with the
+videos" failure was that black-input bug, NOT the inventive prompt). Also kept: D44 `preserve_before`. Net:
+this supersedes D53/D55/D56 for the moodboard prompt; D54 stands. (Earlier entries left intact as the record.)
