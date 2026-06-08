@@ -53,10 +53,26 @@ def enhance_assets(run: Run, inventory: dict[str, Any], *, use_cache: bool = Fal
     return mapping
 
 
+def _is_degenerate(path: str) -> bool:
+    """True if `path` isn't a usable image: unopenable, empty, near-black, or near-uniform. The fal
+    upscaler intermittently returns a BLACK/error frame (run 0035: it overwrote good relit frames with
+    pitch-black, which then fed Nano Banana and produced moodboards unrelated to the real photos). A
+    legit dark-but-detailed photo has real variance (high stddev), so we gate on BOTH low mean AND low
+    stddev to avoid rejecting a genuinely moody shot."""
+    from PIL import Image, ImageStat
+    try:
+        g = Image.open(path).convert("L")
+        st = ImageStat.Stat(g)
+        return st.mean[0] < 10 and st.stddev[0] < 8
+    except Exception:
+        return True
+
+
 def _enhance_one(run: Run, src: str, dst: str, remediation: list[str]) -> None:
     """Apply triage's remediation. Relight is done LOCALLY with Pillow brightness/contrast —
     content-preserving, no API, no hallucination. Upscale/sharpen uses fal clarity-upscaler; when
-    both apply, the locally-relit file is what gets upscaled."""
+    both apply, the locally-relit file is what gets upscaled. The fal result is VALIDATED — a black/
+    degenerate upscale never overwrites the good relit/source image (D54)."""
     from PIL import Image, ImageEnhance
     relight = any(r.startswith("relight") for r in remediation)
     upscale = any(r in ("upscale", "sharpen") for r in remediation)
@@ -67,11 +83,32 @@ def _enhance_one(run: Run, src: str, dst: str, remediation: list[str]) -> None:
         img.save(dst)
         run.log(f"Enhance: relit locally (brightness x{factor}) {Path(src).name}")
     if upscale:
-        import fal_client, urllib.request
-        res = fal_client.subscribe(config.MODEL_ROUTER["enhance_upscale"],
-                                   arguments={"image_url": fal_client.upload_file(dst if relight else src),
-                                              "upscale_factor": 2})
-        urllib.request.urlretrieve(res["image"]["url"], dst)
-        run.log(f"Enhance: upscaled {Path(src).name}")
+        import fal_client, urllib.request, tempfile
+        from .llm import ascii_safe_path
+        pre = dst if relight else src                      # the best image we have BEFORE upscaling
+        try:
+            res = fal_client.subscribe(config.MODEL_ROUTER["enhance_upscale"],
+                                       arguments={"image_url": fal_client.upload_file(ascii_safe_path(pre)),
+                                                  "upscale_factor": 2})
+            tmp = tempfile.NamedTemporaryFile(suffix=Path(dst).suffix or ".jpg", delete=False)
+            tmp.close()
+            urllib.request.urlretrieve(res["image"]["url"], tmp.name)
+            if _is_degenerate(tmp.name):                   # upscaler returned black/error — DON'T ship it
+                if not relight:
+                    shutil.copy2(src, dst)                 # ensure dst exists (source is the fallback)
+                run.log(f"[OPERATOR ACTION] Enhance: upscaler returned a degenerate (black/blank) frame for "
+                        f"{Path(src).name} — kept the {'relit' if relight else 'original'} image instead.")
+            else:
+                shutil.move(tmp.name, dst)
+                run.log(f"Enhance: upscaled {Path(src).name}")
+        except Exception as e:
+            if not relight:
+                shutil.copy2(src, dst)                      # never leave dst missing / half-written
+            run.log(f"Enhance: upscale failed for {Path(src).name} ({str(e)[:60]}) — kept "
+                    f"{'relit' if relight else 'original'} image.")
     elif not relight:
         shutil.copy2(src, dst)
+    # final safety net: whatever path ran, dst must be a usable image (never a black frame downstream)
+    if _is_degenerate(dst):
+        shutil.copy2(src, dst)
+        run.log(f"[OPERATOR ACTION] Enhance: result for {Path(src).name} was degenerate — reverted to the raw asset.")

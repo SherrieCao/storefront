@@ -104,6 +104,7 @@ FPS               = 30
 # Asset enumeration caps (how many real assets to surface to the Director as @-tokens).
 MAX_REF_IMAGES    = 9                # recoverable photos offered as @Image1..N (keyframe/moodboard inputs)
 MAX_REF_VIDEOS    = 3                # usable videos offered as @Video1..N (real_clip sources)
+MOODBOARD_TILE_TARGET = 6            # distinct real photos to compose into a moodboard (dense, not sparse; D55)
 # Frame extraction (D52): when operator PHOTOS are scarce, pull representative stills from the provided
 # VIDEOS so the Director can compose moodboards + seed seedance shots (real frames > generated fill).
 FRAME_EXTRACT_ENABLED   = True

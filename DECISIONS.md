@@ -682,3 +682,69 @@ capped to `MAX_REF_IMAGES`; tagged `source:"frame"` (surfaced in the Director's 
 says use them for moodboards/seeds but prefer an operator photo for the closing-card hero). ASCII-safe
 frame names. Verified: 2 frames extracted from a real emoji-named clip. This also reduces reliance on
 D51's synthetic asset-gen (a real frame beats a generated one). director-v1.20.
+
+## D53 (SHIPPED — moodboard preserves the real photos; background not prescribed)
+Run 0035 (Simply Unique Nails): the moodboard "had nothing to do with the videos." Verified the cause was
+NOT piping (the extracted frames DO reach Nano Banana — all 9 registered `@Image`, the moodboard beats
+reference them, the `/edit` calls upload them) but **fidelity**: `_moodboard_prompt` told Nano Banana to
+"compose the subjects as cutouts… art-directed scrapbook on a warm textured surface," i.e. to REIMAGINE
+the frames into new art rather than show the real nail designs. Fix (operator-chosen — preserve-fidelity
+prompt over a deterministic collage): the moodboard prompt now says to **lay out the EXACT attached real
+photos** as overlapping tiles and **PRESERVE each photo's content faithfully** (same subjects/designs/
+colors/textures — do NOT repaint, restyle, re-render, smooth, or invent), mirroring `_shot_prompt`'s D47
+PRESERVE pattern. Also (operator note) the prescribed **"warm textured surface" was too restrictive** — the
+background is now explicitly **free to vary** (clean/tonal/textured to suit the specific photos), not forced
+to one fixed surface. Code-only change in `pipeline/keyframes._moodboard_prompt` (keyframe prompts aren't
+scaffold-versioned); `_STYLE_SUFFIX` (phone-camera realism + no-on-screen-text) is retained.
+
+## D54 (SHIPPED — enhance validates its output; a black/degenerate upscale never ships)
+Run 0035 follow-up: the moodboards were unrelated to the videos. The cause was NOT the moodboard prompt
+(D53) or Nano Banana hallucinating (my wrong first theory) — it was the **`enhance` stage shipping pitch-
+black frames**. `_enhance_one` uploaded to the fal clarity-upscaler and did `urlretrieve(url, dst)` with
+NO validation; for several video-extracted frames the upscaler returned a black/error image (4 came back
+byte-identical black at the un-upscaled 720×1280 size), **overwriting the good locally-relit frame**.
+`resolve_ref` prefers the enhanced (`enh_`) copy, so keyframes/moodboard fed black to Nano Banana → garbage.
+(The operator caught it from fal's history showing a pitch-black INPUT; the isolated D53 test looked fine
+only because triage-only bypasses `enh_` files.) Fix: the upscaler result is downloaded to a TEMP, then
+**validated** (`_is_degenerate` = unopenable OR mean<10 AND stddev<8 — the AND avoids rejecting a genuinely
+dark-but-detailed photo); a degenerate result is discarded and we keep the relit/source image. The fal
+upload now also routes through `ascii_safe_path` (D49 consistency), and a final safety net guarantees `dst`
+is never a black frame downstream. External APIs returning degenerate results is a real failure mode — the
+pipeline validates rather than trusts. Lesson logged: check the actual bytes fed into a gen model before
+blaming the model.
+
+## D55 (SHIPPED — moodboards are DENSE: enrich with distinct real tiles)
+After D53/D54 fixed fidelity, the moodboards came out too PLAIN — only the 2 assets the Director assigned
+per beat, and those 2 were near-identical adjacent frames from ONE clip (D52 extracts `frame_<clip>_0/_1`),
+on a plain background. A real moodboard is a dense, designed board of MANY distinct pieces. Fix:
+`_moodboard_tiles(inventory, seg)` keeps the Director's chosen assets as the LEAD tiles, then ENRICHES with
+other distinct real photos from inventory — deduped by source clip (`_clip_base` collapses twin frames),
+`before`-role problem photos excluded (D44), capped at `MOODBOARD_TILE_TARGET=6`. The moodboard prompt now
+asks for a dense, art-directed pinboard (varied tile sizes, slight rotations, overlapping, tasteful tape/
+pins, complementary varied background) while keeping D53's hard fidelity rule (preserve each real photo;
+never repaint/restyle/swap/duplicate/invent photos, scenes, or text — richness comes from arranging the
+REAL photos densely). Validated on 0035: each beat went from 2 twin tiles → 5 distinct tiles (one per clip),
+Director's emphasis preserved (different lead per board). The judgment/execution split holds: the Director
+still chooses WHICH beats are moodboards + the lead assets; keyframes (execution) handles dense composition.
+Prompt refinement (operator): the dense board defaulted to echoing the photos' own backdrop (pink fur),
+so boards looked samey. Pulled the old prompt's scrapbook/mood-board/cut-out language back in and aimed it
+at the BACKGROUND — a rich TEXTURED scrapbook surface (cork pinboard / kraft paper / linen) that must be
+interesting and VARY board to board, explicitly not a flat plain surface or an echo of the photos' backdrop
+— while D53's fidelity rule on the photo CONTENT is unchanged.
+
+## D56 (SHIPPED — moodboards may decorate: ephemera + decorative words around faithful photos)
+After D53/D54/D55 the boards were faithful + dense + textured but had lost the decorative CHARM the operator
+liked in the old output (pressed flowers, sprigs, swatches, ribbons, little signs, decorative letters). Why
+they vanished: the old prompt ("art-directed scrapbook, editorial layout", NO anti-invention rule) let Nano
+Banana add that ephemera freely; D53/D55's `"...or invent any new objects"` removed the props and the no-text
+tightening removed the letters/signs. Key realization: the actual "nothing to do with the videos" disaster
+was the BLACK-input bug (D54), NOT decoration freedom — so with real photos now guaranteed to reach the
+model, decorating AROUND faithful photos is safe. Operator chose **ephemera + decorative words** (closest to
+the old pretty look). Fix: `_moodboard_prompt` now (a) explicitly PERMITS scrapbook ephemera + small
+decorative words/monogram letters/little signs in the gaps/margins, (b) HARD-protects the photos themselves
+(decoration never covers/replaces/alters a real photo tile; the nail work stays exactly as shot), and (c)
+ends with the new `_STYLE_BASE` instead of `_STYLE_SUFFIX`. `_STYLE_SUFFIX` was split into `_STYLE_BASE`
+(phone realism/color/9:16) + `_NO_TEXT`; `_shot_prompt` and `generate_synthetic_asset` keep the full
+`_STYLE_SUFFIX` so Seedance seeds stay text-free — the no-text ban is now opt-in, lifted for moodboards ONLY.
+Supersedes the moodboard no-text tightening (D55). Accepted tradeoff: decorative AI text can render garbled
+or lightly overlap Remotion captions; mitigated by "keep words SMALL and incidental, no caption bars."

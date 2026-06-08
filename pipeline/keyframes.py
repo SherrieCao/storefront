@@ -16,13 +16,13 @@ Stubs offline (no FAL_KEY): writes placeholder frames so downstream stages still
 NOT for: video generation (Shot Agent) or creative decisions (the Director).
 """
 from __future__ import annotations
-import json, shutil, threading, urllib.request
+import json, re, shutil, threading, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 from . import config, budget
 from .tracing import Run
-from .translator import resolve_ref
+from .translator import resolve_ref, _usable_assets
 from .triage import role_from_name
 
 KEYFRAMES_DIR = "04_keyframes"
@@ -30,13 +30,17 @@ KEYFRAMES_DIR = "04_keyframes"
 # De-AI (D47): describe the PHYSICS of a phone camera, not "lo-fi" (which Nano Banana renders as a pretty
 # version of lo-fi). Negatives folded into the prompt (nano-banana-2 has no negative_prompt). COLOR is
 # deliberately NOT muted — "natural, not over-graded" keeps a genuinely vivid result vivid (D41).
-_STYLE_SUFFIX = ("Phone-camera realism: mixed color-temperature indoor light (warm lamp + cool daylight), "
-                 "deep depth of field (everything roughly in focus, no bokeh), slightly overexposed "
-                 "highlights, natural color that is true to life and NOT over-graded (a genuinely vivid "
-                 "subject stays vivid), slightly off-center casual composition, authentic and NOT polished. "
-                 "Vertical 9:16. Absolutely NOT studio-lit, NOT shallow depth of field or bokeh, NOT "
-                 "golden-hour, NOT a glossy 3D render. Absolutely NO on-screen text, words, captions, "
-                 "logos, watermarks, or signage.")
+# Split so the no-text ban is OPT-IN (D56): shot keyframes + synthetic assets MUST stay text-free (Seedance
+# seeds shouldn't carry text), but the moodboard wants decorative scrapbook words/letters. Shots use the
+# full _STYLE_SUFFIX (base + no-text); the moodboard uses _STYLE_BASE + its own narrower text rule.
+_STYLE_BASE = ("Phone-camera realism: mixed color-temperature indoor light (warm lamp + cool daylight), "
+               "deep depth of field (everything roughly in focus, no bokeh), slightly overexposed "
+               "highlights, natural color that is true to life and NOT over-graded (a genuinely vivid "
+               "subject stays vivid), slightly off-center casual composition, authentic and NOT polished. "
+               "Vertical 9:16. Absolutely NOT studio-lit, NOT shallow depth of field or bokeh, NOT "
+               "golden-hour, NOT a glossy 3D render.")
+_NO_TEXT = " Absolutely NO on-screen text, words, captions, logos, watermarks, or signage."
+_STYLE_SUFFIX = _STYLE_BASE + _NO_TEXT
 
 
 def run_keyframes(run: Run, brief: dict[str, Any], inventory: dict[str, Any],
@@ -74,17 +78,21 @@ def run_keyframes(run: Run, brief: dict[str, Any], inventory: dict[str, Any],
                 mode, prompt, image_urls = "generate", _shot_prompt(seg, mood), []
         else:  # moodboard
             assets = [resolve_ref(inventory, t) for t in seg.get("moodboard_assets", [])]
-            image_urls = [p for p in assets if p]
+            lead_urls = [p for p in assets if p]
             # before/after (D43): a `before` photo is the raw PROBLEM-STATE image — show it PLAIN, not a
             # beautified Nano Banana composition (it should read as the unglamorous starting point). If
             # every photo in this beat is before-role, use the raw photo directly (also skips a fal call).
-            if image_urls and all(role_from_name(Path(p).name) == "before" for p in image_urls):
-                shutil.copyfile(image_urls[0], dst)
+            if lead_urls and all(role_from_name(Path(p).name) == "before" for p in lead_urls):
+                shutil.copyfile(lead_urls[0], dst)
                 with lock:
                     kf_map[str(n)] = {"path": str(dst), "mode": "preserve_before", "segment_type": seg["type"]}
                 run.log(f"Keyframes: segment {n} [preserve_before] -> {dst.name} (plain before photo, no composition)")
                 return
+            # Enrich: a real moodboard is DENSE, so add other distinct real photos (deduped by clip) to the
+            # Director's lead assets — not just 2 near-identical frames (D55).
+            image_urls = _moodboard_tiles(inventory, seg) or lead_urls
             mode, prompt = "moodboard", _moodboard_prompt(seg, mood)
+            run.log(f"Keyframes: segment {n} moodboard composing {len(image_urls)} distinct tiles")
 
         _make_keyframe(run, mode, prompt, image_urls, str(dst), seed)
         with lock:
@@ -120,12 +128,67 @@ def _shot_prompt(seg: dict[str, Any], mood: str) -> str:
     return base + _STYLE_SUFFIX
 
 
+def _clip_base(path: str) -> str:
+    """Dedup key so a moodboard doesn't tile two near-identical frames of the same shot. Video-extracted
+    frames (D52) are named 'frame_<clipstem>_<i>.ext' (maybe with an 'enh_' prefix) — collapse them to one
+    key per source clip. Regular photos each get their own key (their stem)."""
+    name = Path(path).name
+    if name.startswith("enh_"):
+        name = name[4:]
+    stem = Path(name).stem
+    if stem.startswith("frame_"):
+        return "clip:" + re.sub(r"_\d+$", "", stem[len("frame_"):])
+    return "file:" + stem
+
+
+def _moodboard_tiles(inventory: dict[str, Any], seg: dict[str, Any]) -> list[str]:
+    """The real photo tiles for a moodboard beat. The Director's chosen assets come FIRST, then the board
+    is ENRICHED with other distinct real photos so it reads like an actual dense moodboard — not 2 near-
+    identical frames from one clip (D55). Deduped by source clip (twin frames collapse); `before`-role
+    problem photos are excluded (don't pull an unglamorous before into a beauty board — D44). Faithful
+    real photos only, never invented; capped at MOODBOARD_TILE_TARGET."""
+    lead = [resolve_ref(inventory, t) for t in seg.get("moodboard_assets", [])]
+    pool = [resolve_ref(inventory, t) for t, _ in _usable_assets(inventory) if t.startswith("@Image")]
+    seen: set[str] = set()
+    tiles: list[str] = []
+    for p in [x for x in lead if x] + [x for x in pool if x]:
+        if role_from_name(Path(p).name) == "before":   # keep before-state photos out of beauty boards
+            continue
+        k = _clip_base(p)
+        if k in seen:
+            continue
+        seen.add(k)
+        tiles.append(p)
+        if len(tiles) >= config.MOODBOARD_TILE_TARGET:
+            break
+    return tiles
+
+
 def _moodboard_prompt(seg: dict[str, Any], mood: str) -> str:
-    return ("Compose the attached real photos as cutouts arranged into ONE designed moodboard "
-            "frame — subjects cut from their backgrounds and laid out like an art-directed "
-            "scrapbook/pinboard on a warm textured surface, slightly overlapping, editorial layout. "
-            f"{('Mood: ' + mood + '. ') if mood else ''}Keep each real subject's likeness. "
-            + _STYLE_SUFFIX)
+    # Fidelity + density + decoration (D53/D55/D56). History: the old prompt let Nano Banana INVENT a whole
+    # design (board had "nothing to do with the videos") — but the real culprit was BLACK input (D54), not
+    # decoration freedom. D53/D55 then over-corrected: banning all invented "objects" + all text stripped the
+    # pretty ephemera (flowers, swatches, decorative letters) the operator liked. Now that real photos are
+    # guaranteed faithful, we let the model DECORATE AROUND the photos again (ephemera + small words), while
+    # the photos THEMSELVES stay exactly as shot. Ends with _STYLE_BASE (no text ban) — decorative words OK.
+    return ("Arrange ALL the attached real photos into ONE dense, art-directed scrapbook / mood board "
+            "— the real photos laid out as overlapping Polaroid-style tiles and cut-outs, varied "
+            "sizes, slight rotations, editorial collage, with tasteful tape, push-pins, and binder clips. "
+            "Set the collage on a RICH, TEXTURED scrapbook background — e.g. a cork pinboard, kraft/craft "
+            "paper, linen, or textured paper — that is interesting and should VARY from board to board; do "
+            "NOT default to a flat plain surface or simply echo the photos' own backdrops. "
+            "Decorate it like a real designer's mood board — you MAY add tasteful scrapbook ephemera in the "
+            "gaps and margins around the photos: pressed flowers, sprigs, color/paint swatches, ribbons, "
+            "gems, patterned washi tape, small decorative words, monogram letters, or little hand-lettered "
+            "signs. Keep any decorative words SMALL and incidental (pretty accents, not headlines), and add "
+            "no brand logos, watermarks, or ad-style caption bars. Make the board feel FULL, layered, and "
+            "hand-made. These decorations go in the gaps and margins AROUND the photos only — they must "
+            "NEVER cover, replace, alter, or be drawn onto the real photo tiles. PRESERVE each real photo's "
+            "content exactly: the same subjects, designs, colors, textures, and details as shown — do NOT "
+            "repaint, restyle, re-render, smooth, swap, or duplicate the photos; the real nail work stays "
+            "exactly as shot. "
+            f"{('Mood: ' + mood + '. ') if mood else ''}"
+            + _STYLE_BASE)
 
 
 def _fal_upload(path: str) -> str:
