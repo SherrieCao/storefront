@@ -8,6 +8,23 @@ A few mediocre phone photos, maybe a short clip, and a one-line description of t
 **One finished, well-edited 25–30s vertical ad comes out** — in about **ten minutes**, for about
 **two dollars**.
 
+## See it: messy photos in, finished ad out
+
+<table>
+<tr>
+<td align="center" width="44%"><b>What you hand it</b><br><sub>a folder of raw phone photos &amp; clips</sub></td>
+<td align="center" width="12%"></td>
+<td align="center" width="44%"><b>What comes back</b><br><sub>one ready-to-post vertical ad</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/assets/modawg_before.png" alt="Raw phone photos handed to Storefront" width="300"></td>
+<td align="center"><h2>→</h2></td>
+<td align="center"><img src="docs/assets/modawg_after.gif" alt="The finished Storefront ad" width="190"></td>
+</tr>
+</table>
+
+<sub><b>Real run — MoDawgs' Daycare &amp; Boarding</b> (San Mateo, CA): the owner's raw phone photos &amp; clips in, one 24-second vertical ad out. <a href="https://drive.google.com/file/d/1jJnNE2kA_x8gzeNEvUxuIIeA9ctGDv9A/view?usp=sharing">▶ Watch the full ad with sound</a> — the looping preview above is silent.</sub>
+
 ---
 
 ## The problem
